@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # Cargo dependencies — opens a PR when a crate has an update,
+  # including security advisories against Cargo.lock. Same convention
+  # as sync-mesh-core: routine minor/patch bumps grouped into one PR,
+  # security updates always get their own.
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep the CI/release workflow actions themselves up to date —
+  # checkout, rust-toolchain, release-plz-action, and the PR-title
+  # checker included.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

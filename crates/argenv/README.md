@@ -6,6 +6,7 @@
 [![crates.io](https://img.shields.io/crates/v/argenv.svg)](https://crates.io/crates/argenv)
 [![docs.rs](https://img.shields.io/docsrs/argenv)](https://docs.rs/argenv)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
+[![API](https://img.shields.io/badge/contract%20API-live-brightgreen.svg)](https://argenv-opencommons.github.io/argenv/)
 
 ```rust
 pub const LOG_LEVEL: Input<LogLevel> = Input {

@@ -1,0 +1,11 @@
+[workspace]
+changelog_config = "cliff.toml"
+dependencies_update = false
+git_tag_enable = true
+git_release_enable = true
+
+# argenv-cli already declares publish = false in its own Cargo.toml — Cargo
+# itself refuses to publish it regardless of what release-plz does, so no
+# override is needed here. The `argenv` library crate has no such marker:
+# it's meant for crates.io from day one, so it publishes by default, same as
+# a plain `cargo publish` would do with no release-plz involved at all.

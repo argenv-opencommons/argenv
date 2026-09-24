@@ -113,10 +113,10 @@ fn main() {
     match Model::COMMAND.get_from(&r).as_deref() {
         Some("install") => {
             let pkg = Model::INSTALL_PACKAGE.get_from(&r);
-            let no_rec = Model::SKIP_RECOMMENDS.get_from_or_default(&r).unwrap_or(false);
-            println!(
-                "install: pkg={pkg:?} yes={yes} no-recommends={no_rec}"
-            );
+            let no_rec = Model::SKIP_RECOMMENDS
+                .get_from_or_default(&r)
+                .unwrap_or(false);
+            println!("install: pkg={pkg:?} yes={yes} no-recommends={no_rec}");
         }
         Some("remove") => {
             let pkg = Model::REMOVE_PACKAGE.get_from(&r);
@@ -142,9 +142,15 @@ mod tests {
 
     fn resolve(args: &[&str], env: &[(&str, &str)]) -> Resolution {
         let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-        let env: BTreeMap<String, String> =
-            env.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
-        Invocation { args: &args, env: &env }.resolve(&Model::records())
+        let env: BTreeMap<String, String> = env
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        Invocation {
+            args: &args,
+            env: &env,
+        }
+        .resolve(&Model::records())
     }
 
     #[test]
@@ -156,7 +162,10 @@ mod tests {
     fn install_resolves_its_own_package_and_not_removes() {
         let r = resolve(&["install", "nginx"], &[]);
         assert_eq!(Model::COMMAND.get_from(&r).as_deref(), Some("install"));
-        assert_eq!(Model::INSTALL_PACKAGE.get_from(&r).as_deref(), Some("nginx"));
+        assert_eq!(
+            Model::INSTALL_PACKAGE.get_from(&r).as_deref(),
+            Some("nginx")
+        );
         // remove_package slot is absent even though positionals[1] exists
         assert_eq!(Model::REMOVE_PACKAGE.get_from(&r), None);
     }
@@ -173,7 +182,10 @@ mod tests {
     #[test]
     fn no_recommends_is_absent_when_remove_selected() {
         // env set for install branch, but remove branch is active
-        let r = resolve(&["remove", "nginx"], &[("APT_INSTALL_SKIP_RECOMMENDS", "1")]);
+        let r = resolve(
+            &["remove", "nginx"],
+            &[("APT_INSTALL_SKIP_RECOMMENDS", "1")],
+        );
         assert_eq!(Model::SKIP_RECOMMENDS.get_from(&r), None);
     }
 
@@ -184,11 +196,7 @@ mod tests {
             let mut full = vec!["-y"];
             full.extend(args);
             let r = resolve(&full, &[]);
-            assert_eq!(
-                Model::YES.get_from(&r),
-                Some(true),
-                "failed for: apt {cmd}"
-            );
+            assert_eq!(Model::YES.get_from(&r), Some(true), "failed for: apt {cmd}");
         }
     }
 

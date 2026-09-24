@@ -85,14 +85,15 @@ mod vocabulary;
 #[cfg(feature = "contract")]
 pub mod contract;
 
-pub use binding::{Arg, Env};
+pub use binding::{Arg, Env, GatedBy};
 pub use date::ReviewDate;
 pub use from_raw::{FromRaw, LogLevel, Tristate};
 pub use input::Input;
 pub use invocation::{Invocation, Resolution, Resolved, Source};
 pub use lint::{lint, lint_env, Finding, Severity};
 pub use record::{
-    check_unique, document, ArgBinding, EnvBinding, Record, CONTRACT_VERSION, PRECEDENCE,
+    check_gates, check_unique, document, ArgBinding, EnvBinding, GatedByRecord, Record,
+    CONTRACT_VERSION, PRECEDENCE,
 };
 pub use source::{EnvSource, ProcessEnv};
 pub use version::{Version, THIS_VERSION};

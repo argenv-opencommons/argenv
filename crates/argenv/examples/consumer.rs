@@ -76,6 +76,7 @@ macro_rules! model {
                 let mut v = Vec::new();
                 $( v.extend(Model::$id.check()); )+
                 v.extend(check_unique(&Model::records()));
+                v.extend(check_gates(&Model::records()));
                 v
             }
         }

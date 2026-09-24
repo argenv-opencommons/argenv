@@ -65,21 +65,10 @@ fn main() {
     let p = problems();
     assert!(p.is_empty(), "declaration errors: {p:#?}");
 
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let resolved = Invocation {
-        args: &args,
-        env: &ProcessEnv,
-    }
-    .resolve(&model());
+    let resolved = argenv::parse(&model());
 
-    // Lint the invocation: unknown flags, missing required values, etc.
-    for finding in lint(
-        &model(),
-        &Invocation {
-            args: &args,
-            env: &ProcessEnv,
-        },
-    ) {
+    // Lint the resolution: unknown flags, missing required values, etc.
+    for finding in lint(&model(), &resolved) {
         eprintln!("{:?}: {finding}", finding.severity());
     }
 
@@ -88,6 +77,7 @@ fn main() {
     let port = PORT.get_from_or_default(&resolved);
     let verbose = VERBOSE.get_from_or_default(&resolved);
 
+    let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!("USAGE");
         for r in &model() {

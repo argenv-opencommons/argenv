@@ -202,15 +202,8 @@ model! {
 
 fn main() {
     let model = Model::records();
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let env = ProcessEnv;
-    let invocation = Invocation {
-        args: &args,
-        env: &env,
-    };
-
     // Resolve once, then read typed values as often as you like.
-    let resolved = invocation.resolve(&model);
+    let resolved = argenv::parse(&model);
     let level = Model::LOG_LEVEL.get_from_or_default(&resolved);
     let hdr = Model::HDR.get_from_or_default(&resolved);
 
@@ -221,7 +214,7 @@ fn main() {
     );
 
     // Report anything the invocation got wrong.
-    for finding in lint(&model, &invocation) {
+    for finding in lint(&model, &resolved) {
         eprintln!("{:?}: {finding}", finding.severity());
     }
 

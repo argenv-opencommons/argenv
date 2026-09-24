@@ -138,20 +138,9 @@ fn main() {
     let p = problems();
     assert!(p.is_empty(), "declaration errors: {p:#?}");
 
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let resolved = Invocation {
-        args: &args,
-        env: &ProcessEnv,
-    }
-    .resolve(&model());
+    let resolved = argenv::parse(&model());
 
-    for finding in lint(
-        &model(),
-        &Invocation {
-            args: &args,
-            env: &ProcessEnv,
-        },
-    ) {
+    for finding in lint(&model(), &resolved) {
         eprintln!("{:?}: {finding}", finding.severity());
     }
 

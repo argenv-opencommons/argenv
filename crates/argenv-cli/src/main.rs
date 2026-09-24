@@ -166,13 +166,11 @@ fn cmd_lint(args: &[String]) -> ExitCode {
     };
 
     let env = ProcessEnv;
-    let findings = lint(
-        &records,
-        &Invocation {
-            args: &argv,
-            env: &env,
-        },
-    );
+    let resolution = Invocation {
+        args: &argv,
+        env: &env,
+    }.resolve(&records);
+    let findings = lint(&records, &resolution);
     if findings.is_empty() {
         println!("invocation satisfies {} declared inputs", records.len());
         return ExitCode::SUCCESS;

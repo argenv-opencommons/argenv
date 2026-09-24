@@ -85,12 +85,38 @@ mod vocabulary;
 #[cfg(feature = "contract")]
 pub mod contract;
 
+/// Parse the current process's argument vector and environment against a
+/// declared model, returning a fully resolved [`Resolution`].
+///
+/// This is the one-liner for the common case — no manual argv slicing,
+/// no `Invocation` construction, no `ProcessEnv` import needed:
+///
+/// ```no_run
+/// # use argenv::*;
+/// # pub const HOST: Input<String> = Input {
+/// #     key: "host", ty: Type::String,
+/// #     env: Some(Env::new("APP_HOST")),
+/// #     arg: Some(Arg { value_name: "HOST", ..Arg::long("host") }),
+/// #     ..Input::EMPTY
+/// # };
+/// let model = vec![HOST.to_record()];
+/// let resolution = argenv::parse(&model);
+/// let host = HOST.get_from(&resolution);
+/// ```
+///
+/// For tests, inject specific args and env via [`Invocation`] directly
+/// rather than mutating global process state.
+pub fn parse(model: &[Record]) -> Resolution {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    Invocation { args: &args, env: &ProcessEnv }.resolve(model)
+}
+
 pub use binding::{Arg, Env, GatedBy};
 pub use date::ReviewDate;
 pub use from_raw::{FromRaw, LogLevel, Tristate};
 pub use input::Input;
 pub use invocation::{Invocation, Resolution, Resolved, Source};
-pub use lint::{lint, lint_env, Finding, Severity};
+pub use lint::{lint, Finding, Severity};
 pub use record::{
     check_gates, check_unique, document, ArgBinding, EnvBinding, GatedByRecord, Record,
     CONTRACT_VERSION, PRECEDENCE,

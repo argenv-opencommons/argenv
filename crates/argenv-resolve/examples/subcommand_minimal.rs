@@ -7,7 +7,7 @@
 //! cargo run -p argenv --example subcommand_minimal -- stop
 //! cargo run -p argenv --example subcommand_minimal -- restart
 //! ```
-use argenv::*;
+use argenv_resolve::*;
 
 /// The program's own subcommand enum — a real, exhaustively-matchable type,
 /// not a string. `derive(Serialize)` with `rename_all = "snake_case"` is

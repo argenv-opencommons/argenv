@@ -1,0 +1,20 @@
+[package]
+name = "argenv-resolve"
+description = "Resolve an argenv contract against a real invocation - argv and envp, with precedence, defaults, and linting. Depends on argenv for the declared data; argenv depends on nothing here."
+keywords = ["cli", "env", "arguments", "parser", "invocation"]
+categories = ["command-line-interface", "config", "development-tools"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+argenv = { path = "../argenv", version = "0.1" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true

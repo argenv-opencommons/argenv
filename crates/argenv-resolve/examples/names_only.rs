@@ -8,7 +8,7 @@
 //! cargo run -p argenv --example names_only -- --host db.example.com --port 5432
 //! cargo run -p argenv --example names_only -- --bogus-flag
 //! ```
-use argenv::*;
+use argenv_resolve::*;
 
 contract! {
     HOST: String = Input {

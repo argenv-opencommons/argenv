@@ -11,6 +11,13 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+# A real, compiled program used only by tests/integration.rs, which spawns it
+# as a subprocess with real argv/env and checks its actual behaviour - not a
+# user-facing example, and not published.
+[[bin]]
+name = "argenv-resolve-mock"
+path = "tests/fixtures/mock.rs"
+
 [dependencies]
 argenv = { path = "../argenv", version = "0.1" }
 serde = { workspace = true }

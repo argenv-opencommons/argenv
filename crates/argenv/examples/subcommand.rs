@@ -45,8 +45,14 @@ pub const COMMAND: Input<String> = Input {
 pub const SOURCE: Input<String> = Input {
     key: "source",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "add", env_prefix: "APP_ADD_" }),
-    arg: Some(Arg { value_name: "REPO", ..Arg::positional(0) }),
+    gated_by: Some(GatedBy {
+        value: "add",
+        env_prefix: "APP_ADD_",
+    }),
+    arg: Some(Arg {
+        value_name: "REPO",
+        ..Arg::positional(0)
+    }),
     env: Some(Env::new("APP_ADD_SOURCE")),
     summary: "Upstream repository to fork, owner/repo.",
     ..Input::EMPTY
@@ -58,8 +64,14 @@ pub const SOURCE: Input<String> = Input {
 pub const ORG: Input<String> = Input {
     key: "org",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "add", env_prefix: "APP_ADD_" }),
-    arg: Some(Arg { value_name: "ORG", ..Arg::long("org") }),
+    gated_by: Some(GatedBy {
+        value: "add",
+        env_prefix: "APP_ADD_",
+    }),
+    arg: Some(Arg {
+        value_name: "ORG",
+        ..Arg::long("org")
+    }),
     env: Some(Env::new("APP_ADD_ORG")),
     summary: "GitHub org to fork into (overrides the manifest default).",
     ..Input::EMPTY
@@ -68,8 +80,14 @@ pub const ORG: Input<String> = Input {
 pub const TRACKED_REF: Input<String> = Input {
     key: "tracked_ref",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "add", env_prefix: "APP_ADD_" }),
-    arg: Some(Arg { value_name: "REF", ..Arg::long("tracked-ref") }),
+    gated_by: Some(GatedBy {
+        value: "add",
+        env_prefix: "APP_ADD_",
+    }),
+    arg: Some(Arg {
+        value_name: "REF",
+        ..Arg::long("tracked-ref")
+    }),
     env: Some(Env::new("APP_ADD_TRACKED_REF")),
     summary: "Branch or tag to track (defaults to upstream's own default).",
     ..Input::EMPTY
@@ -121,9 +139,19 @@ fn main() {
     assert!(p.is_empty(), "declaration errors: {p:#?}");
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let resolved = Invocation { args: &args, env: &ProcessEnv }.resolve(&model());
+    let resolved = Invocation {
+        args: &args,
+        env: &ProcessEnv,
+    }
+    .resolve(&model());
 
-    for finding in lint(&model(), &Invocation { args: &args, env: &ProcessEnv }) {
+    for finding in lint(
+        &model(),
+        &Invocation {
+            args: &args,
+            env: &ProcessEnv,
+        },
+    ) {
         eprintln!("{:?}: {finding}", finding.severity());
     }
 
@@ -182,9 +210,15 @@ mod tests {
 
     fn resolve(args: &[&str], env: &[(&str, &str)]) -> Resolution {
         let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-        let env: BTreeMap<String, String> =
-            env.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
-        Invocation { args: &args, env: &env }.resolve(&model())
+        let env: BTreeMap<String, String> = env
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        Invocation {
+            args: &args,
+            env: &env,
+        }
+        .resolve(&model())
     }
 
     #[test]
@@ -210,7 +244,10 @@ mod tests {
 
     #[test]
     fn global_flag_resolves_on_any_branch() {
-        assert_eq!(JSON.get_from(&resolve(&["status", "--json"], &[])), Some(true));
+        assert_eq!(
+            JSON.get_from(&resolve(&["status", "--json"], &[])),
+            Some(true)
+        );
         assert_eq!(
             JSON.get_from(&resolve(&["add", "owner/repo", "--json"], &[])),
             Some(true)

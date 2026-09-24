@@ -257,7 +257,9 @@ impl<T: 'static> Input<T> {
                 ));
             }
             if positional && arg.negatable {
-                e.push(format!("{at}: `negatable` produces --no-… which only makes sense for a named flag"));
+                e.push(format!(
+                    "{at}: `negatable` produces --no-… which only makes sense for a named flag"
+                ));
             }
             if positional && arg.repeatable {
                 e.push(format!("{at}: `repeatable` accumulates repeated occurrences of a named flag; a positional occurs at most once by construction"));

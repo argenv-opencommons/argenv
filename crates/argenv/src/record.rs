@@ -329,10 +329,7 @@ pub fn check_gates(records: &[Record]) -> Vec<String> {
 
     let gates: Vec<&Record> = records
         .iter()
-        .filter(|r| {
-            r.gated_by.is_none()
-                && r.arg.as_ref().and_then(|a| a.position) == Some(0)
-        })
+        .filter(|r| r.gated_by.is_none() && r.arg.as_ref().and_then(|a| a.position) == Some(0))
         .collect();
 
     if gates.len() > 1 {

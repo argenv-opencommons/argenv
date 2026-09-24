@@ -28,7 +28,10 @@ const COMMAND: Input<String> = Input {
 const SOURCE: Input<String> = Input {
     key: "source",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "add", env_prefix: "APP_ADD_" }),
+    gated_by: Some(GatedBy {
+        value: "add",
+        env_prefix: "APP_ADD_",
+    }),
     arg: Some(Arg::positional(0)),
     env: Some(Env::new("APP_ADD_SOURCE")),
     summary: "Repository to add, owner/repo.",
@@ -39,7 +42,10 @@ const SOURCE: Input<String> = Input {
 const MODULE: Input<String> = Input {
     key: "module",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "remove", env_prefix: "APP_REMOVE_" }),
+    gated_by: Some(GatedBy {
+        value: "remove",
+        env_prefix: "APP_REMOVE_",
+    }),
     arg: Some(Arg::positional(0)),
     env: Some(Env::new("APP_REMOVE_MODULE")),
     summary: "Module name to remove.",
@@ -50,8 +56,14 @@ const MODULE: Input<String> = Input {
 const ORG: Input<String> = Input {
     key: "org",
     ty: Type::String,
-    gated_by: Some(GatedBy { value: "add", env_prefix: "APP_ADD_" }),
-    arg: Some(Arg { value_name: "ORG", ..Arg::long("org") }),
+    gated_by: Some(GatedBy {
+        value: "add",
+        env_prefix: "APP_ADD_",
+    }),
+    arg: Some(Arg {
+        value_name: "ORG",
+        ..Arg::long("org")
+    }),
     env: Some(Env::new("APP_ADD_ORG")),
     summary: "GitHub org to fork into.",
     ..Input::EMPTY
@@ -80,9 +92,15 @@ fn model() -> Vec<Record> {
 
 fn resolve(args: &[&str], env: &[(&str, &str)]) -> Resolution {
     let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-    let env: BTreeMap<String, String> =
-        env.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
-    Invocation { args: &args, env: &env }.resolve(&model())
+    let env: BTreeMap<String, String> = env
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    Invocation {
+        args: &args,
+        env: &env,
+    }
+    .resolve(&model())
 }
 
 // ── declaration checks ───────────────────────────────────────────────────────
@@ -115,7 +133,9 @@ fn check_gates_catches_a_gated_value_not_in_gate_allowed() {
     let bad = vec![command.to_record(), SOURCE.to_record()];
     let problems = check_gates(&bad);
     assert!(
-        problems.iter().any(|p| p.contains("add") && p.contains("allowed")),
+        problems
+            .iter()
+            .any(|p| p.contains("add") && p.contains("allowed")),
         "expected an allowed-token error, got: {problems:?}"
     );
 }
@@ -165,13 +185,19 @@ fn a_named_flag_and_a_positional_on_the_same_arg_binding_is_rejected() {
     let bad: Input<String> = Input {
         key: "bad",
         ty: Type::String,
-        arg: Some(Arg { long: Some("bad"), position: Some(0), ..Arg::EMPTY }),
+        arg: Some(Arg {
+            long: Some("bad"),
+            position: Some(0),
+            ..Arg::EMPTY
+        }),
         summary: "Invalid.",
         ..Input::EMPTY
     };
     let problems = bad.check();
     assert!(
-        problems.iter().any(|p| p.contains("both a long/short form and a position")),
+        problems
+            .iter()
+            .any(|p| p.contains("both a long/short form and a position")),
         "{problems:?}"
     );
 }

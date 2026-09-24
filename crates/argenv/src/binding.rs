@@ -112,7 +112,6 @@ impl Arg {
     }
 }
 
-
 /// Restricts an input to one branch of the model's one positional gate.
 ///
 /// A gate is an ordinary [`Input`](crate::Input) whose `arg` is

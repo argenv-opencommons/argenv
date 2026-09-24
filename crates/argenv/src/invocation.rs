@@ -94,8 +94,8 @@ impl<'a> Invocation<'a> {
             // invocation, same as if it had no env binding at all.
             if let Some(gated) = &r.gated_by {
                 match &gate_value {
-                    Some(v) if v == &gated.value => {}  // correct branch — allow through
-                    _ => continue,                      // wrong or absent branch — skip
+                    Some(v) if v == &gated.value => {} // correct branch — allow through
+                    _ => continue,                     // wrong or absent branch — skip
                 }
             }
             if let Some(raw) = r.env_names().iter().find_map(|n| self.env.get(n)) {
@@ -178,7 +178,11 @@ struct Parsed {
 /// and only reads `positionals[1 + position]` when the gate's own raw value
 /// matches what it requires - otherwise it is left unresolved, which is
 /// correct: for this invocation, that branch's input genuinely was not given.
-fn resolve_positionals(model: &[Record], positionals: &[String], values: &mut BTreeMap<String, Resolved>) {
+fn resolve_positionals(
+    model: &[Record],
+    positionals: &[String],
+    values: &mut BTreeMap<String, Resolved>,
+) {
     let gate = model
         .iter()
         .find(|r| r.gated_by.is_none() && r.arg.as_ref().and_then(|a| a.position) == Some(0));

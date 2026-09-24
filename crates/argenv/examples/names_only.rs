@@ -19,7 +19,10 @@ pub const HOST: Input<String> = Input {
     key: "host",
     ty: Type::String,
     env: Some(Env::new("APP_HOST")),
-    arg: Some(Arg { value_name: "HOST", ..Arg::long("host") }),
+    arg: Some(Arg {
+        value_name: "HOST",
+        ..Arg::long("host")
+    }),
     ..Input::EMPTY
 };
 
@@ -28,7 +31,10 @@ pub const PORT: Input<u16> = Input {
     ty: Type::Uint,
     default: Some(5432),
     env: Some(Env::new("APP_PORT")),
-    arg: Some(Arg { value_name: "PORT", ..Arg::pair("port", 'p') }),
+    arg: Some(Arg {
+        value_name: "PORT",
+        ..Arg::pair("port", 'p')
+    }),
     ..Input::EMPTY
 };
 
@@ -60,10 +66,20 @@ fn main() {
     assert!(p.is_empty(), "declaration errors: {p:#?}");
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let resolved = Invocation { args: &args, env: &ProcessEnv }.resolve(&model());
+    let resolved = Invocation {
+        args: &args,
+        env: &ProcessEnv,
+    }
+    .resolve(&model());
 
     // Lint the invocation: unknown flags, missing required values, etc.
-    for finding in lint(&model(), &Invocation { args: &args, env: &ProcessEnv }) {
+    for finding in lint(
+        &model(),
+        &Invocation {
+            args: &args,
+            env: &ProcessEnv,
+        },
+    ) {
         eprintln!("{:?}: {finding}", finding.severity());
     }
 

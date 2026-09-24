@@ -129,12 +129,15 @@
 ///   The one call that replaces manual `parse` + `lint` + error-loop wiring.
 #[macro_export]
 macro_rules! contract {
-    ( $( $(#[$m:meta])* $id:ident : $t:ty = $body:expr ; )+ ) => {
+    ( $( $(#[$m:meta])* $id:ident : $t:ty $(, $c:ty)? = $body:expr ; )+ ) => {
         /// This program's invocation surface, declared as typed constants.
         pub struct Contract;
 
         impl Contract {
-            $( $(#[$m])* pub const $id: $crate::Input<$t> = $body; )+
+            // The optional `, $c:ty` is the input's subcommand-enum
+            // parameter (see `Input::subcommands`) - omitted, it defaults to
+            // `NoCommand` exactly as writing `Input<$t>` by hand would.
+            $( $(#[$m])* pub const $id: $crate::Input<$t $(, $c)?> = $body; )+
 
             /// Every input projected to a portable [`$crate::Record`].
             ///

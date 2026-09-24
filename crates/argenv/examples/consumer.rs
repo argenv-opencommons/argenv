@@ -24,7 +24,10 @@ impl RenderScale {
     pub const FULL: RenderScale = RenderScale::from_permille(1000);
 
     pub const fn from_permille(p: u16) -> RenderScale {
-        assert!(p >= 100 && p <= 1000, "render scale must be within 0.1..=1.0");
+        assert!(
+            p >= 100 && p <= 1000,
+            "render scale must be within 0.1..=1.0"
+        );
         RenderScale(p)
     }
 
@@ -205,7 +208,11 @@ mod tests {
         let env: BTreeMap<String, String> =
             [("MYAPP_LOG_LEVEL".to_string(), "error".to_string())].into();
         let args = vec!["--log-level".to_string(), "warn".to_string()];
-        let r = Invocation { args: &args, env: &env }.resolve(&Model::records());
+        let r = Invocation {
+            args: &args,
+            env: &env,
+        }
+        .resolve(&Model::records());
         assert_eq!(Model::LOG_LEVEL.get_from(&r), Some(LogLevel::Warn));
         assert_eq!(r.source("log_level"), Some(Source::Arg));
     }

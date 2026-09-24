@@ -128,9 +128,15 @@ mod tests {
 
     fn resolve(args: &[&str], env: &[(&str, &str)]) -> Resolution {
         let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-        let env: BTreeMap<String, String> =
-            env.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
-        Invocation { args: &args, env: &env }.resolve(&Model::records())
+        let env: BTreeMap<String, String> = env
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        Invocation {
+            args: &args,
+            env: &env,
+        }
+        .resolve(&Model::records())
     }
 
     #[test]

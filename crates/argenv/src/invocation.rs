@@ -50,23 +50,11 @@ impl<'a> Invocation<'a> {
     }
 
     /// Resolve every declared input against this invocation.
-    ///
-    /// Positional inputs (`arg.position` set - see [`crate::Arg::positional`])
-    /// are resolved first and separately from named flags: the model's one
-    /// gate, if it declares one, reads `positionals[0]`; anything
-    /// [`crate::GatedBy`] a value that matches the gate's own resolved value
-    /// reads `positionals[1 + n]` for its declared position `n`; anything
-    /// gated by a value that does *not* match is left unresolved here (not an
-    /// error - `get_from` on it correctly returns `None`, exactly as if
-    /// nothing had supplied it, because for this invocation nothing did).
     pub fn resolve(&self, model: &[Record]) -> Resolution {
         let mut values: BTreeMap<String, Resolved> = BTreeMap::new();
         let mut findings = Vec::new();
 
         let parsed = parse_args(model, self.args, &mut findings);
-
-        resolve_positionals(model, &parsed.positionals, &mut values);
-
         for (key, raw) in parsed.values {
             values.insert(
                 key,
@@ -77,26 +65,9 @@ impl<'a> Invocation<'a> {
             );
         }
 
-        // Determine the gate's resolved value now, so we can skip env resolution
-        // for gated inputs whose branch was not selected. This mirrors what
-        // resolve_positionals already does for positional-arg gating.
-        let gate_value = model
-            .iter()
-            .find(|r| r.gated_by.is_none() && r.arg.as_ref().and_then(|a| a.position) == Some(0))
-            .and_then(|g| values.get(&g.key).map(|v| v.raw.clone()));
-
         for r in model {
             if values.contains_key(&r.key) {
                 continue;
-            }
-            // Skip env resolution for a gated input when the gate resolved to
-            // a different branch — the input genuinely was not active for this
-            // invocation, same as if it had no env binding at all.
-            if let Some(gated) = &r.gated_by {
-                match &gate_value {
-                    Some(v) if v == &gated.value => {} // correct branch — allow through
-                    _ => continue,                     // wrong or absent branch — skip
-                }
             }
             if let Some(raw) = r.env_names().iter().find_map(|n| self.env.get(n)) {
                 values.insert(
@@ -170,53 +141,6 @@ impl Resolution {
 struct Parsed {
     values: BTreeMap<String, String>,
     positionals: Vec<String>,
-}
-
-/// Fill `values` from `positionals` for every input with `arg.position` set.
-///
-/// An ungated positional reads `positionals[position]` directly - `position`
-/// `0` with no `gated_by` is the model's gate, if it has one, but nothing
-/// here requires that; a purely positional model with no dispatch at all
-/// (`cp <src> <dst>`, say) works the same way, one absolute slot each.
-///
-/// A *gated* positional first resolves the gate (position 0, no `gated_by`)
-/// and only reads `positionals[1 + position]` when the gate's own raw value
-/// matches what it requires - otherwise it is left unresolved, which is
-/// correct: for this invocation, that branch's input genuinely was not given.
-fn resolve_positionals(
-    model: &[Record],
-    positionals: &[String],
-    values: &mut BTreeMap<String, Resolved>,
-) {
-    let gate = model
-        .iter()
-        .find(|r| r.gated_by.is_none() && r.arg.as_ref().and_then(|a| a.position) == Some(0));
-
-    let gate_value = gate.and_then(|_| positionals.first());
-
-    for r in model {
-        let Some(position) = r.arg.as_ref().and_then(|a| a.position) else {
-            continue;
-        };
-        let index = match &r.gated_by {
-            None => position as usize,
-            Some(g) => {
-                if gate_value.map(String::as_str) != Some(g.value.as_str()) {
-                    continue; // wrong (or no) branch selected - correctly unresolved
-                }
-                1 + position as usize
-            }
-        };
-        if let Some(raw) = positionals.get(index) {
-            values.insert(
-                r.key.clone(),
-                Resolved {
-                    raw: raw.clone(),
-                    source: Source::Arg,
-                },
-            );
-        }
-    }
 }
 
 /// Parse an argument vector against a model.

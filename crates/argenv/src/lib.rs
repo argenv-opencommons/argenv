@@ -71,18 +71,18 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-/// Declare a program's invocation surface as a typed model.
+/// Declare a program's invocation surface as a typed contract.
 ///
-/// Generates a `Model` struct with one `pub const` per input, plus `records()`,
-/// `problems()`, and `parse_and_lint()` — the three things every consumer needs
-/// and would otherwise write by hand for each project.
+/// Generates a `Contract` struct with one `pub const` per input, plus
+/// `records()`, `problems()`, and `parse_and_lint()` — the three things every
+/// consumer needs and would otherwise write by hand for each project.
 ///
 /// # Usage
 ///
 /// ```
 /// use argenv::*;
 ///
-/// model! {
+/// contract! {
 ///     /// Verbosity level — both a flag and an env var.
 ///     LOG_LEVEL: LogLevel = Input {
 ///         key:     "log_level",
@@ -107,33 +107,33 @@
 ///     };
 /// }
 ///
-/// let p = Model::problems();
+/// let p = Contract::problems();
 /// assert!(p.is_empty(), "{p:#?}");
 ///
 /// // In main(), one line resolves and enforces the policy:
-/// // let resolved = Model::parse_and_lint(OnProblems::FailOnError);
-/// // let level = Model::LOG_LEVEL.get_from_or_default(&resolved);
+/// // let resolved = Contract::parse_and_lint(OnProblems::FailOnError);
+/// // let level = Contract::LOG_LEVEL.get_from_or_default(&resolved);
 /// ```
 ///
 /// # What is generated
 ///
-/// - `pub struct Model;`
-/// - `impl Model { pub const $ID: Input<$T> = ...; ... }` — one typed constant
-///   per input, carrying both its declaration and its accessor.
-/// - `Model::records() -> Vec<Record>` — every input as a portable contract record.
-/// - `Model::problems() -> Vec<String>` — every declaration error across the
-///   model (per-input `check()`, plus `check_unique` and `check_gates`). Call
-///   this in a test so a bad declaration fails the build rather than a user's launch.
-/// - `Model::parse_and_lint(policy: OnProblems) -> Resolution` — reads the
+/// - `pub struct Contract;`
+/// - `impl Contract { pub const $ID: Input<$T> = ...; ... }` — one typed
+///   constant per input, carrying both its declaration and its accessor.
+/// - `Contract::records() -> Vec<Record>` — every input as a portable contract record.
+/// - `Contract::problems() -> Vec<String>` — every declaration error across
+///   the contract (per-input `check()`, plus `check_unique`). Call this in a
+///   test so a bad declaration fails the build rather than a user's launch.
+/// - `Contract::parse_and_lint(policy: OnProblems) -> Resolution` — reads the
 ///   process argv and env, resolves, lints, and applies the given policy.
 ///   The one call that replaces manual `parse` + `lint` + error-loop wiring.
 #[macro_export]
-macro_rules! model {
+macro_rules! contract {
     ( $( $(#[$m:meta])* $id:ident : $t:ty = $body:expr ; )+ ) => {
         /// This program's invocation surface, declared as typed constants.
-        pub struct Model;
+        pub struct Contract;
 
-        impl Model {
+        impl Contract {
             $( $(#[$m])* pub const $id: $crate::Input<$t> = $body; )+
 
             /// Every input projected to a portable [`$crate::Record`].
@@ -141,19 +141,18 @@ macro_rules! model {
             /// Hand this to [`$crate::lint`], [`$crate::document`], or any
             /// tool that works from the cross-language contract.
             pub fn records() -> Vec<$crate::Record> {
-                vec![ $( Model::$id.to_record() ),+ ]
+                vec![ $( Contract::$id.to_record() ),+ ]
             }
 
-            /// Every declaration error across the whole model.
+            /// Every declaration error across the whole contract.
             ///
             /// Empty means valid. Call this once at startup (or in a test)
             /// so a bad declaration fails loudly rather than silently doing
             /// the wrong thing at runtime.
             pub fn problems() -> Vec<String> {
                 let mut v = Vec::new();
-                $( v.extend(Model::$id.check()); )+
-                v.extend($crate::check_unique(&Model::records()));
-                v.extend($crate::check_gates(&Model::records()));
+                $( v.extend(Contract::$id.check()); )+
+                v.extend($crate::check_unique(&Contract::records()));
                 v
             }
 
@@ -164,10 +163,10 @@ macro_rules! model {
             /// input) before touching argv/env, so they never reach production.
             /// Applies `policy` to invocation problems (user mistakes).
             pub fn parse_and_lint(policy: $crate::OnProblems) -> $crate::Resolution {
-                let p = Model::problems();
+                let p = Contract::problems();
                 assert!(p.is_empty(), "declaration errors: {p:#?}");
-                let resolved = $crate::parse(&Model::records());
-                $crate::handle_problems(&$crate::lint(&Model::records(), &resolved), policy);
+                let resolved = $crate::parse(&Contract::records());
+                $crate::handle_problems(&$crate::lint(&Contract::records(), &resolved), policy);
                 resolved
             }
         }
@@ -219,7 +218,7 @@ pub fn parse(model: &[Record]) -> Resolution {
     .resolve(model)
 }
 
-pub use binding::{Arg, Env, GatedBy};
+pub use binding::{Arg, Env};
 pub use date::ReviewDate;
 pub use from_raw::{FromRaw, LogLevel, Tristate};
 pub use input::Input;
@@ -227,8 +226,7 @@ pub use invocation::{Invocation, Resolution, Resolved, Source};
 pub use lint::{lint, Finding, Severity};
 pub use problems::{handle_problems, OnProblems};
 pub use record::{
-    check_gates, check_unique, document, ArgBinding, EnvBinding, GatedByRecord, Record,
-    CONTRACT_VERSION, PRECEDENCE,
+    check_unique, document, ArgBinding, EnvBinding, Record, CONTRACT_VERSION, PRECEDENCE,
 };
 pub use source::{EnvSource, ProcessEnv};
 pub use version::{Version, THIS_VERSION};

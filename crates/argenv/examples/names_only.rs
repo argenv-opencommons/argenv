@@ -10,7 +10,7 @@
 //! ```
 use argenv::*;
 
-model! {
+contract! {
     HOST: String = Input {
         key: "host",
         ty: Type::String,
@@ -38,11 +38,11 @@ model! {
 }
 
 fn main() {
-    let resolved = Model::parse_and_lint(OnProblems::FailOnError);
+    let resolved = Contract::parse_and_lint(OnProblems::FailOnError);
 
-    let host = Model::HOST.get_from(&resolved);
-    let port = Model::PORT.get_from_or_default(&resolved);
-    let verbose = Model::VERBOSE.get_from_or_default(&resolved);
+    let host = Contract::HOST.get_from(&resolved);
+    let port = Contract::PORT.get_from_or_default(&resolved);
+    let verbose = Contract::VERBOSE.get_from_or_default(&resolved);
 
     println!("host={host:?}  port={port:?}  verbose={verbose:?}");
 }
@@ -53,6 +53,6 @@ mod tests {
 
     #[test]
     fn declaration_is_valid() {
-        assert!(Model::problems().is_empty());
+        assert!(Contract::problems().is_empty());
     }
 }

@@ -25,15 +25,6 @@
           "description": "Whether --no-<long> is accepted.",
           "type": "boolean"
         },
-        "position": {
-          "description": "A bare positional slot instead of a named flag - see [`crate::Arg::positional`]. Mutually exclusive with `long`/`short`.",
-          "format": "uint16",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "repeatable": {
           "default": false,
           "description": "Whether the flag may be repeated, accumulating values.",
@@ -78,24 +69,6 @@
       },
       "required": [
         "name"
-      ],
-      "type": "object"
-    },
-    "GatedByRecord": {
-      "description": "The flattened wire form of [`crate::GatedBy`].",
-      "properties": {
-        "env_prefix": {
-          "description": "Every env name on this input must start with this.",
-          "type": "string"
-        },
-        "value": {
-          "description": "The gate's resolved value this input requires, e.g. `\"add\"`.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "env_prefix",
-        "value"
       ],
       "type": "object"
     }
@@ -160,17 +133,6 @@
               "string",
               "null"
             ]
-          },
-          "gated_by": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/GatedByRecord"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Restricts this input to one branch of the model's one positional gate - see [`crate::GatedBy`]."
           },
           "group": {
             "description": "Free-form grouping tag for documentation and help output.",

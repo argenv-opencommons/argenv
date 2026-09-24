@@ -52,10 +52,6 @@ pub struct ArgBinding {
     /// Whether the flag may be repeated, accumulating values.
     #[serde(default)]
     pub repeatable: bool,
-    /// A bare positional slot instead of a named flag - see
-    /// [`crate::Arg::positional`]. Mutually exclusive with `long`/`short`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub position: Option<u16>,
 }
 
 /// One input, flattened to plain JSON-friendly types.
@@ -130,20 +126,6 @@ pub struct Record {
     /// The argument-vector binding, if this input accepts one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arg: Option<ArgBinding>,
-    /// Restricts this input to one branch of the model's one positional gate -
-    /// see [`crate::GatedBy`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gated_by: Option<GatedByRecord>,
-}
-
-/// The flattened wire form of [`crate::GatedBy`].
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "contract", derive(schemars::JsonSchema))]
-pub struct GatedByRecord {
-    /// The gate's resolved value this input requires, e.g. `"add"`.
-    pub value: String,
-    /// Every env name on this input must start with this.
-    pub env_prefix: String,
 }
 
 fn unknown_stability() -> String {
@@ -184,13 +166,6 @@ impl Record {
         let Some(a) = &self.arg else {
             return String::new();
         };
-        if a.position.is_some() {
-            let placeholder = a
-                .value_name
-                .clone()
-                .unwrap_or_else(|| self.key.to_uppercase());
-            return format!("<{placeholder}>");
-        }
         let mut parts = Vec::new();
         if let Some(s) = &a.short {
             parts.push(format!("-{s}"));
@@ -309,63 +284,5 @@ pub fn check_unique(records: &[Record]) -> Vec<String> {
             claim("flag", l, &r.key, &mut args);
         }
     }
-    problems
-}
-
-/// Model-wide checks for [`crate::GatedBy`] that no single input's own
-/// `check()` can make on its own, since they compare one input against every
-/// other. Call alongside `check_unique` and each input's own `.check()`.
-///
-/// * At most one input in the whole model may sit at position 0 with no
-///   `gated_by` - that one, if present, is *the* gate. More than one is
-///   ambiguous: nothing says which token dispatches.
-/// * Every `gated_by.value` used anywhere must be one of the gate's own
-///   `allowed` tokens - an input gated by a branch the gate itself does not
-///   recognise can never become active, which is almost always a typo.
-/// * A `gated_by` used with no gate present at all is the same mistake with
-///   nothing to blame it on.
-pub fn check_gates(records: &[Record]) -> Vec<String> {
-    let mut problems = Vec::new();
-
-    let gates: Vec<&Record> = records
-        .iter()
-        .filter(|r| r.gated_by.is_none() && r.arg.as_ref().and_then(|a| a.position) == Some(0))
-        .collect();
-
-    if gates.len() > 1 {
-        let names: Vec<&str> = gates.iter().map(|r| r.key.as_str()).collect();
-        problems.push(format!(
-            "more than one input sits at position 0 with no gated_by, so it is ambiguous              which one dispatches: {}",
-            names.join(", ")
-        ));
-    }
-
-    let gated: Vec<&Record> = records.iter().filter(|r| r.gated_by.is_some()).collect();
-    if gated.is_empty() {
-        return problems;
-    }
-
-    let Some(gate) = gates.first() else {
-        let names: Vec<&str> = gated.iter().map(|r| r.key.as_str()).collect();
-        problems.push(format!(
-            "{} {} gated_by set, but no input in this model is a gate (position 0,              no gated_by of its own)",
-            names.join(", "),
-            if names.len() == 1 { "has" } else { "have" }
-        ));
-        return problems;
-    };
-
-    for r in &gated {
-        let value = &r.gated_by.as_ref().expect("filtered above").value;
-        if !gate.allowed.iter().any(|a| a == value) {
-            problems.push(format!(
-                "{}: gated_by.value `{value}` is not one of the gate `{}`'s allowed tokens ({})",
-                r.key,
-                gate.key,
-                gate.allowed.join(", ")
-            ));
-        }
-    }
-
     problems
 }

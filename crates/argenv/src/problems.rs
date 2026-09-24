@@ -15,7 +15,7 @@ use crate::{Finding, Severity};
 
 /// What to do when [`crate::lint`] returns findings.
 ///
-/// Pass to [`handle_problems`] or, more commonly, let [`crate::model!`]'s
+/// Pass to [`handle_problems`] or, more commonly, let [`crate::contract!`]'s
 /// generated `Model::parse_and_lint` handle both steps at once.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OnProblems {

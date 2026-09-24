@@ -1,7 +1,7 @@
 //! [`Input`] — the declaration. One input a program accepts, however it arrives.
 use crate::{
-    Arg, ArgBinding, ConfigKeyRef, Deprecation, Env, EnvBinding, EnvSource, FromRaw, GatedBy,
-    ProcessEnv, Record, Resolution, ReviewDate, Since, Stability, Type, THIS_VERSION,
+    Arg, ArgBinding, ConfigKeyRef, Deprecation, Env, EnvBinding, EnvSource, FromRaw, ProcessEnv,
+    Record, Resolution, ReviewDate, Since, Stability, Type, THIS_VERSION,
 };
 use serde::Serialize;
 
@@ -97,15 +97,6 @@ pub struct Input<T: 'static> {
 
     /// How the value may arrive from the argument vector.
     pub arg: Option<Arg>,
-
-    /// Restricts this input to a single branch of the model's one positional
-    /// gate (see [`GatedBy`] and the crate-level docs on subcommands) - the
-    /// value the gate must resolve to, and the env-name prefix this input's
-    /// own `env`, if any, must carry.
-    ///
-    /// `None` (the default, and every example above) means: always in effect,
-    /// which is exactly today's behaviour with nothing new to learn.
-    pub gated_by: Option<GatedBy>,
 }
 
 impl<T: 'static> Input<T> {
@@ -128,7 +119,6 @@ impl<T: 'static> Input<T> {
         summary: "",
         env: None,
         arg: None,
-        gated_by: None,
     };
 
     /// How many values the argument form consumes: `0` for a boolean flag whose
@@ -207,16 +197,9 @@ impl<T: 'static> Input<T> {
         }
 
         if let Some(arg) = self.arg {
-            let named = arg.long.is_some() || arg.short.is_some();
-            let positional = arg.position.is_some();
-            if !named && !positional {
+            if arg.long.is_none() && arg.short.is_none() {
                 e.push(format!(
-                    "{at}: arg binding has neither a long/short form nor a position - it must be one or the other"
-                ));
-            }
-            if named && positional {
-                e.push(format!(
-                    "{at}: arg binding has both a long/short form and a position - a flag is one or the other, never both"
+                    "{at}: arg binding has neither a long nor a short form"
                 ));
             }
             if let Some(l) = arg.long {
@@ -251,51 +234,6 @@ impl<T: 'static> Input<T> {
                     "{at}: a bool flag takes no value, so `value_name` is meaningless"
                 ));
             }
-            if positional && self.ty == Type::Bool {
-                e.push(format!(
-                    "{at}: a positional cannot be Type::Bool - a positional's presence already                      means a value was given, so there is no separate on/off state for a bool to                      express; use a named flag for a switch instead"
-                ));
-            }
-            if positional && arg.negatable {
-                e.push(format!(
-                    "{at}: `negatable` produces --no-… which only makes sense for a named flag"
-                ));
-            }
-            if positional && arg.repeatable {
-                e.push(format!("{at}: `repeatable` accumulates repeated occurrences of a named flag; a positional occurs at most once by construction"));
-            }
-        }
-
-        if let Some(gated) = self.gated_by {
-            if gated.value.is_empty() {
-                e.push(format!("{at}: `gated_by.value` is empty"));
-            }
-            if gated.env_prefix.is_empty() {
-                e.push(format!("{at}: `gated_by.env_prefix` is empty"));
-            }
-            if let Some(env) = self.env {
-                if !env.name.starts_with(gated.env_prefix) {
-                    e.push(format!(
-                        "{at}: is gated by `{}`, so its env name `{}` must start with `{}` - env vars are \
-                         process-global, so two branches' same-named flag would otherwise collide",
-                        gated.value, env.name, gated.env_prefix
-                    ));
-                }
-                for a in env.aliases {
-                    if !a.starts_with(gated.env_prefix) {
-                        e.push(format!(
-                            "{at}: is gated by `{}`, so its env alias `{a}` must also start with `{}`",
-                            gated.value, gated.env_prefix
-                        ));
-                    }
-                }
-            }
-            // No further self-check needed here for "a gate cannot itself be gated": a gate is
-            // *defined*, model-wide, as gated_by == None (see check_gates) - a record that
-            // reaches this branch already has gated_by == Some, so it can never be classified as
-            // a gate in the first place, whatever its own position happens to be. That is what
-            // keeps dispatch to one level rather than a subcommand tree: there is structurally no
-            // way to chain a gated_by off of another gated_by.
         }
 
         if let Some(v) = self.since.resolve() {
@@ -422,11 +360,6 @@ impl<T: 'static + Serialize> Input<T> {
                 value_name: non_empty(a.value_name),
                 negatable: a.negatable,
                 repeatable: a.repeatable,
-                position: a.position,
-            }),
-            gated_by: self.gated_by.map(|g| crate::record::GatedByRecord {
-                value: g.value.to_string(),
-                env_prefix: g.env_prefix.to_string(),
             }),
         }
     }

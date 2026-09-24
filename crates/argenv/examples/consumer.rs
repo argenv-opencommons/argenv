@@ -53,10 +53,10 @@ impl FromRaw for RenderScale {
 // Compile-checked successor reference: rename or delete `HUD` and this stops
 // compiling, so the pointer can never dangle.
 fn hud_replacement() -> &'static str {
-    Model::HUD.key
+    Contract::HUD.key
 }
 
-model! {
+contract! {
     /// Both doors: a flag and a variable, one setting.
     LOG_LEVEL: LogLevel = Input {
         key:       "log_level",
@@ -174,11 +174,11 @@ model! {
 
 fn main() {
     // One call: parse argv+env, lint the result, fail on errors.
-    let resolved = Model::parse_and_lint(OnProblems::FailOnError);
+    let resolved = Contract::parse_and_lint(OnProblems::FailOnError);
 
     // Read typed values as often as needed — the resolution is cheap to clone.
-    let level = Model::LOG_LEVEL.get_from_or_default(&resolved);
-    let hdr = Model::HDR.get_from_or_default(&resolved);
+    let level = Contract::LOG_LEVEL.get_from_or_default(&resolved);
+    let hdr = Contract::HDR.get_from_or_default(&resolved);
 
     eprintln!(
         "log_level = {level:?} (from {:?}), hdr = {hdr:?} (from {:?})",
@@ -189,7 +189,7 @@ fn main() {
     // Emit the machine-readable contract — what `argenv lint` reads.
     println!(
         "{}",
-        serde_json::to_string_pretty(&document("myapp@a1b2c3d", &Model::records())).unwrap()
+        serde_json::to_string_pretty(&document("myapp@a1b2c3d", &Contract::records())).unwrap()
     );
 }
 
@@ -200,7 +200,11 @@ mod tests {
 
     #[test]
     fn the_model_satisfies_every_rule() {
-        assert!(Model::problems().is_empty(), "{:#?}", Model::problems());
+        assert!(
+            Contract::problems().is_empty(),
+            "{:#?}",
+            Contract::problems()
+        );
     }
 
     #[test]
@@ -212,8 +216,8 @@ mod tests {
             args: &args,
             env: &env,
         }
-        .resolve(&Model::records());
-        assert_eq!(Model::LOG_LEVEL.get_from(&r), Some(LogLevel::Warn));
+        .resolve(&Contract::records());
+        assert_eq!(Contract::LOG_LEVEL.get_from(&r), Some(LogLevel::Warn));
         assert_eq!(r.source("log_level"), Some(Source::Arg));
     }
 }

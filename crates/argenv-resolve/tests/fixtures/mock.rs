@@ -5,8 +5,8 @@
 //! Deliberately exercises every feature in one surface, plus the specific
 //! anti-patterns that must be rejected:
 //!
-//!   mock [--verbose] [--config PATH] build <target> [--release] [--jobs N]
-//!   mock [--verbose] [--config PATH] run   <target> [--jobs N] [--watch]
+//!   mock [--verbose] [--config PATH] build `<target>` [--release] [--jobs N]
+//!   mock [--verbose] [--config PATH] run   `<target>` [--jobs N] [--watch]
 //!   mock [--verbose] [--config PATH] clean
 //!
 //! - `--verbose`, `--config`: global, active on every subcommand and with none

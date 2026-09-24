@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 argenv = { path = "../argenv", features = ["contract"] }
+argenv-resolve = { path = "../argenv-resolve" }
 serde_json = { workspace = true }
 
 [dev-dependencies]

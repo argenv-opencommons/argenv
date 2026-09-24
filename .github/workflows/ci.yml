@@ -35,7 +35,7 @@ jobs:
         run: cargo test --workspace --all-features
 
       - name: Docs (warnings are errors)
-        run: cargo doc --no-deps -p argenv --all-features
+        run: cargo doc --no-deps -p argenv -p argenv-resolve --all-features
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -59,7 +59,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Regenerate the example document
-        run: cargo run -p argenv --example consumer > /tmp/example.json
+        run: cargo run -p argenv-resolve --example consumer > /tmp/example.json
 
       - name: Validate with a third-party engine
         run: |

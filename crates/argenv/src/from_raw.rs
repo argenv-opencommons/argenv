@@ -11,9 +11,9 @@ use std::path::PathBuf;
 
 /// Parse a value from the raw string an invocation carried.
 ///
-/// Return `None` for "absent or invalid" — [`crate::Input::get`] turns that into
-/// an explicit `Option`, so a malformed value can never silently become a
-/// default-looking empty string.
+/// Return `None` for "absent or invalid" — `argenv-resolve`'s `get()` turns
+/// that into an explicit `Option`, so a malformed value can never silently
+/// become a default-looking empty string.
 pub trait FromRaw: Sized {
     /// Parse, or `None` if the text does not denote a valid value.
     fn from_raw(s: &str) -> Option<Self>;

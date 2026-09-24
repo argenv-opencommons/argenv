@@ -100,9 +100,10 @@ impl Arg {
 
     /// A bare positional, e.g. `Arg::positional(0)` for the first one.
     ///
-    /// Not a `--flag`: consumed by position in argv, the same slot
-    /// [`crate::Resolution::positionals`] already collects — this lets a
-    /// specific one be declared, typed, and documented like any other input.
+    /// Not a `--flag`: consumed by position in argv, the same slot a
+    /// resolver's positionals list already collects (see `argenv-resolve`)
+    /// — this lets a specific one be declared, typed, and documented like
+    /// any other input.
     pub const fn positional(position: u16) -> Arg {
         Arg {
             position: Some(position),

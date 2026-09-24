@@ -1,7 +1,7 @@
 //! [`Input`] — the declaration. One input a program accepts, however it arrives.
 use crate::{
-    Arg, ArgBinding, ConfigKeyRef, Deprecation, Env, EnvBinding, EnvSource, FromRaw, ProcessEnv,
-    Record, Resolution, ReviewDate, Since, Stability, Type, THIS_VERSION,
+    Arg, ArgBinding, ConfigKeyRef, Deprecation, Env, EnvBinding, Record, ReviewDate, Since,
+    Stability, Type, THIS_VERSION,
 };
 use serde::Serialize;
 
@@ -150,33 +150,6 @@ impl<T: 'static, C: 'static> Input<T, C> {
             Type::Bool => 0,
             _ => 1,
         }
-    }
-
-    /// Every environment name this input answers to.
-    pub fn env_names(&self) -> impl Iterator<Item = &'static str> + '_ {
-        self.env
-            .into_iter()
-            .flat_map(|e| std::iter::once(e.name).chain(e.aliases.iter().copied()))
-    }
-
-    /// Whether the input is present in the process environment.
-    pub fn is_set(&self) -> bool {
-        self.is_set_in(&ProcessEnv)
-    }
-
-    /// Whether the input is present in `env`.
-    pub fn is_set_in(&self, env: &impl EnvSource) -> bool {
-        self.env_names().any(|n| env.get(n).is_some())
-    }
-
-    /// The raw, unparsed value from the process environment, if set.
-    pub fn raw(&self) -> Option<String> {
-        self.raw_in(&ProcessEnv)
-    }
-
-    /// The raw, unparsed value from `env`, if set.
-    pub fn raw_in(&self, env: &impl EnvSource) -> Option<String> {
-        self.env_names().find_map(|n| env.get(n))
     }
 
     /// Validate this declaration against the contract's rules.
@@ -332,36 +305,6 @@ impl<T: 'static, C: 'static> Input<T, C> {
             ));
         }
         e
-    }
-}
-
-impl<T: 'static + FromRaw, C: 'static> Input<T, C> {
-    /// Read and parse from the process environment. `None` means absent **or**
-    /// invalid — never a silent empty string.
-    pub fn get(&self) -> Option<T> {
-        self.get_in(&ProcessEnv)
-    }
-
-    /// Read and parse from `env`.
-    ///
-    /// Use this to check an environment being assembled for a child process, to
-    /// read a snapshot captured elsewhere, or to test without mutating global
-    /// process state.
-    pub fn get_in(&self, env: &impl EnvSource) -> Option<T> {
-        self.raw_in(env).and_then(|s| T::from_raw(&s))
-    }
-
-    /// Read and parse from a resolved invocation, honouring precedence across
-    /// both bindings.
-    pub fn get_from(&self, resolution: &Resolution) -> Option<T> {
-        resolution.raw(self.key).and_then(|s| T::from_raw(s))
-    }
-}
-
-impl<T: 'static + FromRaw + Clone, C: 'static> Input<T, C> {
-    /// Read from a resolved invocation, falling back to the declared default.
-    pub fn get_from_or_default(&self, resolution: &Resolution) -> Option<T> {
-        self.get_from(resolution).or_else(|| self.default.clone())
     }
 }
 

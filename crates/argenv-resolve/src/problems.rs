@@ -4,9 +4,9 @@
 //! pass it to [`handle_problems`] or [`Model::parse_and_lint`]:
 //!
 //! ```no_run
-//! # use argenv::*;
+//! # use argenv_resolve::*;
 //! # let model: Vec<Record> = vec![];
-//! # let resolved = argenv::parse(&model);
+//! # let resolved = argenv_resolve::parse(&model);
 //! let findings = lint(&model, &resolved);
 //! handle_problems(&findings, OnProblems::FailOnError);
 //! ```
@@ -53,9 +53,9 @@ pub enum OnProblems {
 /// Returns normally when the policy allows the program to continue.
 ///
 /// ```no_run
-/// # use argenv::*;
+/// # use argenv_resolve::*;
 /// # let model: Vec<Record> = vec![];
-/// # let resolved = argenv::parse(&model);
+/// # let resolved = argenv_resolve::parse(&model);
 /// handle_problems(&lint(&model, &resolved), OnProblems::FailOnError);
 /// ```
 pub fn handle_problems(findings: &[Finding], policy: OnProblems) {

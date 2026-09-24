@@ -14,7 +14,7 @@
 //! cargo run -p argenv --example subcommand_rich -- --json list
 //! PKG_DRY_RUN=1 cargo run -p argenv --example subcommand_rich -- install curl
 //! ```
-use argenv::*;
+use argenv_resolve::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]

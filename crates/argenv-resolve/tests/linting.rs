@@ -1,6 +1,6 @@
 //! What checking an invocation catches — and what it deliberately ignores.
 mod common;
-use argenv::*;
+use argenv_resolve::*;
 use common::*;
 
 fn check(argv: &[&str], vars: &[(&str, &str)]) -> Vec<Finding> {

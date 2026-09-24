@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/argenv", "crates/argenv-cli"]
+members = ["crates/argenv", "crates/argenv-resolve", "crates/argenv-cli"]
 
 [workspace.package]
 version = "0.1.0"

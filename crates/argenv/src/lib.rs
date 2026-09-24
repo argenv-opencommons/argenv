@@ -108,7 +108,11 @@ pub mod contract;
 /// rather than mutating global process state.
 pub fn parse(model: &[Record]) -> Resolution {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    Invocation { args: &args, env: &ProcessEnv }.resolve(model)
+    Invocation {
+        args: &args,
+        env: &ProcessEnv,
+    }
+    .resolve(model)
 }
 
 pub use binding::{Arg, Env, GatedBy};

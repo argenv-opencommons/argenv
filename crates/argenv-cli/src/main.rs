@@ -169,7 +169,8 @@ fn cmd_lint(args: &[String]) -> ExitCode {
     let resolution = Invocation {
         args: &argv,
         env: &env,
-    }.resolve(&records);
+    }
+    .resolve(&records);
     let findings = lint(&records, &resolution);
     if findings.is_empty() {
         println!("invocation satisfies {} declared inputs", records.len());

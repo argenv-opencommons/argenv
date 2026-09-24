@@ -37,8 +37,10 @@ impl Env {
 #[derive(Clone, Copy, Debug)]
 pub struct Arg {
     /// The long form without dashes, e.g. `"log-level"` for `--log-level`.
+    /// Mutually exclusive with `position` — see [`Arg::positional`].
     pub long: Option<&'static str>,
     /// The short form without its dash, e.g. `'l'` for `-l`.
+    /// Mutually exclusive with `position` — see [`Arg::positional`].
     pub short: Option<char>,
     /// Whether `--no-<long>` is accepted to force the value off. Booleans only.
     pub negatable: bool,
@@ -47,6 +49,17 @@ pub struct Arg {
     /// The placeholder shown in help for the value, e.g. `"LEVEL"` in
     /// `--log-level <LEVEL>`. Ignored for booleans, which take no value.
     pub value_name: &'static str,
+    /// A bare positional slot instead of a `--flag`, addressed by position
+    /// rather than by name — see [`Arg::positional`].
+    ///
+    /// For an input with an empty [`crate::Input::subcommands`] list, this is
+    /// the position among all positionals in the invocation (`Some(0)` is the
+    /// first). For an input scoped to one or more subcommands, it is the
+    /// position *after* the subcommand token itself — `Some(0)` is the first
+    /// positional following the subcommand, letting two different
+    /// subcommands each use their own `Some(0)` without conflict, since only
+    /// one subcommand is ever active in a given invocation.
+    pub position: Option<u16>,
 }
 
 impl Arg {
@@ -57,6 +70,7 @@ impl Arg {
         negatable: false,
         repeatable: false,
         value_name: "",
+        position: None,
     };
 
     /// A long flag, e.g. `Arg::long("log-level")` for `--log-level`.
@@ -80,6 +94,18 @@ impl Arg {
         Arg {
             long: Some(long),
             short: Some(short),
+            ..Arg::EMPTY
+        }
+    }
+
+    /// A bare positional, e.g. `Arg::positional(0)` for the first one.
+    ///
+    /// Not a `--flag`: consumed by position in argv, the same slot
+    /// [`crate::Resolution::positionals`] already collects — this lets a
+    /// specific one be declared, typed, and documented like any other input.
+    pub const fn positional(position: u16) -> Arg {
+        Arg {
+            position: Some(position),
             ..Arg::EMPTY
         }
     }

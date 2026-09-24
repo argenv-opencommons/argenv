@@ -221,7 +221,7 @@ pub fn parse(model: &[Record]) -> Resolution {
 pub use binding::{Arg, Env};
 pub use date::ReviewDate;
 pub use from_raw::{FromRaw, LogLevel, Tristate};
-pub use input::Input;
+pub use input::{Input, NoCommand};
 pub use invocation::{Invocation, Resolution, Resolved, Source};
 pub use lint::{lint, Finding, Severity};
 pub use problems::{handle_problems, OnProblems};

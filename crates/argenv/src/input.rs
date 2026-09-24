@@ -5,6 +5,13 @@ use crate::{
 };
 use serde::Serialize;
 
+/// The default for [`Input`]'s second type parameter — an input with no
+/// `subcommands` scoping never needs to name a real subcommand enum. Zero
+/// variants: nothing can ever construct one, which is the type-level way of
+/// saying "this input is not scoped to anything."
+#[derive(Clone, Copy, Debug, Serialize)]
+pub enum NoCommand {}
+
 /// One input a program accepts — its identity, its domain, and the doors it can
 /// arrive through.
 ///
@@ -33,7 +40,7 @@ use serde::Serialize;
 /// assert_eq!(LOG_LEVEL.to_record().usage(), "-l, --log-level <LEVEL>");
 /// ```
 #[derive(Debug)]
-pub struct Input<T: 'static> {
+pub struct Input<T: 'static, C: 'static = NoCommand> {
     /// **Required.** Transport-free identity, `snake_case`.
     ///
     /// This is what the contract, the resolver, and every generated binding join
@@ -97,11 +104,25 @@ pub struct Input<T: 'static> {
 
     /// How the value may arrive from the argument vector.
     pub arg: Option<Arg>,
+
+    /// Restricts this input to one or more subcommands. Empty (the default)
+    /// means always active, regardless of which subcommand — or none — was
+    /// given.
+    ///
+    /// `C` is the program's own subcommand enum (the same type as the
+    /// dispatch input's `T` — see the crate-level docs on subcommands), so
+    /// `subcommands: &[Command::Add, Command::Import]` is checked by the
+    /// compiler: a typo'd or removed variant fails to build, rather than
+    /// silently doing nothing at runtime. One option genuinely shared by
+    /// several subcommands (an `--input-dir` used by both `build` and `run`)
+    /// is declared once, with both listed here, instead of duplicated per
+    /// subcommand or wrongly made global.
+    pub subcommands: &'static [C],
 }
 
-impl<T: 'static> Input<T> {
+impl<T: 'static, C: 'static> Input<T, C> {
     /// The empty baseline: `Input { key: "...", ty: ..., ..Input::EMPTY }`.
-    pub const EMPTY: Input<T> = Input {
+    pub const EMPTY: Input<T, C> = Input {
         key: "",
         ty: Type::String,
         default: None,
@@ -119,6 +140,7 @@ impl<T: 'static> Input<T> {
         summary: "",
         env: None,
         arg: None,
+        subcommands: &[],
     };
 
     /// How many values the argument form consumes: `0` for a boolean flag whose
@@ -197,10 +219,30 @@ impl<T: 'static> Input<T> {
         }
 
         if let Some(arg) = self.arg {
-            if arg.long.is_none() && arg.short.is_none() {
+            let named = arg.long.is_some() || arg.short.is_some();
+            let positional = arg.position.is_some();
+            if !named && !positional {
                 e.push(format!(
-                    "{at}: arg binding has neither a long nor a short form"
+                    "{at}: arg binding has neither a long/short form nor a position — it must be one or the other"
                 ));
+            }
+            if named && positional {
+                e.push(format!(
+                    "{at}: arg binding has both a long/short form and a position — a flag is one or the other, never both"
+                ));
+            }
+            if positional && self.ty == Type::Bool {
+                e.push(format!(
+                    "{at}: a positional cannot be Type::Bool — a positional's presence already                      means a value was given, so there is no separate on/off state for a bool to                      express; use a named flag for a switch instead"
+                ));
+            }
+            if positional && arg.negatable {
+                e.push(format!(
+                    "{at}: `negatable` produces --no-… which only makes sense for a named flag"
+                ));
+            }
+            if positional && arg.repeatable {
+                e.push(format!("{at}: `repeatable` accumulates repeated occurrences of a named flag; a positional occurs at most once by construction"));
             }
             if let Some(l) = arg.long {
                 if let Err(why) = valid_long(l) {
@@ -293,7 +335,7 @@ impl<T: 'static> Input<T> {
     }
 }
 
-impl<T: 'static + FromRaw> Input<T> {
+impl<T: 'static + FromRaw, C: 'static> Input<T, C> {
     /// Read and parse from the process environment. `None` means absent **or**
     /// invalid — never a silent empty string.
     pub fn get(&self) -> Option<T> {
@@ -316,14 +358,14 @@ impl<T: 'static + FromRaw> Input<T> {
     }
 }
 
-impl<T: 'static + FromRaw + Clone> Input<T> {
+impl<T: 'static + FromRaw + Clone, C: 'static> Input<T, C> {
     /// Read from a resolved invocation, falling back to the declared default.
     pub fn get_from_or_default(&self, resolution: &Resolution) -> Option<T> {
         self.get_from(resolution).or_else(|| self.default.clone())
     }
 }
 
-impl<T: 'static + Serialize> Input<T> {
+impl<T: 'static + Serialize, C: 'static + Serialize> Input<T, C> {
     /// Project this declaration down to the portable [`Record`] the contract
     /// describes.
     pub fn to_record(&self) -> Record {
@@ -360,7 +402,25 @@ impl<T: 'static + Serialize> Input<T> {
                 value_name: non_empty(a.value_name),
                 negatable: a.negatable,
                 repeatable: a.repeatable,
+                position: a.position,
             }),
+            subcommands: self
+                .subcommands
+                .iter()
+                .map(|c| {
+                    // The same conversion `default` already goes through, so
+                    // a token is derived here rather than requiring a second,
+                    // separately-maintained "to string" mechanism.
+                    match serde_json::to_value(c).ok() {
+                        Some(serde_json::Value::String(s)) => s,
+                        other => panic!(
+                            "subcommand value did not serialise to a plain string: {other:?} \
+                             — a subcommand enum should derive Serialize with rename_all = \
+                             snake_case, the same convention LogLevel and Tristate use"
+                        ),
+                    }
+                })
+                .collect(),
         }
     }
 }

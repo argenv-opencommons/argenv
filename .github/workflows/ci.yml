@@ -78,7 +78,7 @@ jobs:
     # anti-pattern regressed in an actual running program", distinct from a
     # unit-level assertion failing elsewhere in the workspace.
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test -p argenv-resolve --test integration

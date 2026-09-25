@@ -1,6 +1,6 @@
 //! How a value is read: from which door, in what order, and with what provenance.
 mod common;
-use argenv::*;
+use argenv_resolve::*;
 use common::*;
 
 fn resolve(argv: &[&str], vars: &[(&str, &str)]) -> Resolution {

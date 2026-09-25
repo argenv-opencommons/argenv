@@ -6,7 +6,8 @@
 //! argenv lint PATH [-- ARGS...]  check this invocation against a contract
 //! argenv usage PATH              render the help text a contract implies
 //! ```
-use argenv::{contract, lint, Invocation, ProcessEnv, Record, Severity};
+use argenv::{contract, Record};
+use argenv_resolve::{lint, Invocation, ProcessEnv, Severity};
 use serde_json::Value;
 use std::process::ExitCode;
 
@@ -166,13 +167,12 @@ fn cmd_lint(args: &[String]) -> ExitCode {
     };
 
     let env = ProcessEnv;
-    let findings = lint(
-        &records,
-        &Invocation {
-            args: &argv,
-            env: &env,
-        },
-    );
+    let resolution = Invocation {
+        args: &argv,
+        env: &env,
+    }
+    .resolve(&records);
+    let findings = lint(&records, &resolution);
     if findings.is_empty() {
         println!("invocation satisfies {} declared inputs", records.len());
         return ExitCode::SUCCESS;

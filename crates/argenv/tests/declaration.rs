@@ -82,14 +82,45 @@ fn a_long_flag_is_kebab_case_and_carries_no_dashes() {
 }
 
 #[test]
-fn a_long_flag_may_not_start_with_no_because_that_is_a_negation() {
-    const CLASH: Input<bool> = Input {
+fn a_standalone_no_prefixed_flag_is_not_rejected_by_its_own_check() {
+    // Many real flags are standalone, not auto-generated negations of
+    // anything - git's --no-pager and --no-edit, docker's --no-cache. A
+    // single input's own check() cannot see whether some other input would
+    // collide with it, so it must not guess a rejection here.
+    const STANDALONE: Input<bool> = Input {
         key: "k",
         ty: Type::Bool,
         arg: Some(Arg::long("no-colour")),
         ..Input::EMPTY
     };
-    assert!(CLASH.check().iter().any(|e| e.contains("collides")));
+    assert!(STANDALONE.check().is_empty(), "{:?}", STANDALONE.check());
+}
+
+#[test]
+fn check_unique_still_catches_a_real_collision_with_a_negated_flag() {
+    // The case the old blanket rule was actually trying to prevent, caught
+    // correctly at the only level that can see it: across the whole model.
+    const COLOUR: Input<bool> = Input {
+        key: "colour",
+        ty: Type::Bool,
+        arg: Some(Arg {
+            negatable: true,
+            ..Arg::long("colour")
+        }),
+        ..Input::EMPTY
+    };
+    const EXPLICIT_NO_COLOUR: Input<bool> = Input {
+        key: "explicit_no_colour",
+        ty: Type::Bool,
+        arg: Some(Arg::long("no-colour")),
+        ..Input::EMPTY
+    };
+    let records = vec![COLOUR.to_record(), EXPLICIT_NO_COLOUR.to_record()];
+    let problems = check_unique(&records);
+    assert!(
+        problems.iter().any(|p| p.contains("--no-colour")),
+        "{problems:?}"
+    );
 }
 
 #[test]
@@ -103,7 +134,7 @@ fn an_arg_binding_needs_at_least_one_form() {
     assert!(NEITHER
         .check()
         .iter()
-        .any(|e| e.contains("neither a long nor a short")));
+        .any(|e| e.contains("neither a long/short form nor a position")));
 }
 
 #[test]

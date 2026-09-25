@@ -4,7 +4,7 @@
 //! surface, publishes it, and a completely separate consumer — with no access to
 //! the Rust types — uses that publication to catch a broken launch.
 mod common;
-use argenv::*;
+use argenv_resolve::*;
 use common::*;
 
 #[test]
@@ -48,7 +48,8 @@ fn a_contract_is_declared_published_and_used_to_catch_a_broken_launch() {
     };
 
     // ---- 5. The contract catches all of it, before anything is launched. --
-    let findings = lint(&declared, &invocation);
+    let resolution = invocation.resolve(&declared);
+    let findings = lint(&declared, &resolution);
     let has = |p: fn(&Finding) -> bool| findings.iter().any(p);
 
     assert!(
@@ -99,11 +100,11 @@ fn a_contract_is_declared_published_and_used_to_catch_a_broken_launch() {
         args: &argv,
         env: &environment,
     };
-    assert!(lint(&declared, &invocation)
+    let resolved = invocation.resolve(&declared);
+    assert!(lint(&declared, &resolved)
         .iter()
         .all(|f| f.severity() != Severity::Error));
 
-    let resolved = invocation.resolve(&declared);
     assert_eq!(LEVEL.get_from(&resolved), Some(LogLevel::Warn));
     assert_eq!(resolved.source("log_level"), Some(Source::Arg));
     assert_eq!(HDR.get_from(&resolved), Some(true));

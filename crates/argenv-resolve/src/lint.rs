@@ -4,7 +4,7 @@
 //! misspelled flag is an error the program never sees, a misspelled variable is
 //! ignored in silence, and an out-of-domain value is accepted and then
 //! misbehaves somewhere far from its cause.
-use crate::{EnvSource, Invocation, Record, Resolution, Source};
+use crate::{Record, Resolution, Source};
 
 /// How seriously to take a [`Finding`].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -146,21 +146,27 @@ impl std::fmt::Display for Finding {
     }
 }
 
-/// Check an invocation against a declared contract.
+/// Check a resolved invocation against the declared contract.
+///
+/// Works from a [`Resolution`] rather than an [`crate::Invocation`], so
+/// the common flow is:
+///
+/// ```no_run
+/// # use argenv_resolve::*;
+/// # let model: Vec<Record> = vec![];
+/// let resolution = argenv_resolve::parse(&model);          // reads process args + env
+/// for finding in argenv_resolve::lint(&model, &resolution) {
+///     eprintln!("{:?}: {finding}", finding.severity());
+/// }
+/// ```
 ///
 /// Works from [`Record`]s, so it applies equally to a model declared in this
 /// crate and to a contract document published by a program in another language.
-pub fn lint(model: &[Record], invocation: &Invocation) -> Vec<Finding> {
-    let resolution = invocation.resolve(model);
+pub fn lint(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
     let mut findings = resolution.findings().to_vec();
-    findings.extend(check_resolution(model, &resolution));
-    findings.extend(check_environment(model, invocation.env));
+    findings.extend(check_resolution(model, resolution));
+    findings.extend(check_environment(model, &resolution.env_names));
     findings
-}
-
-/// Check only what an environment supplies, for programs that take no arguments.
-pub fn lint_env(model: &[Record], env: &dyn EnvSource) -> Vec<Finding> {
-    lint(model, &Invocation::from_env(env))
 }
 
 fn check_resolution(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
@@ -223,7 +229,7 @@ fn check_resolution(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
     findings
 }
 
-fn check_environment(model: &[Record], env: &dyn EnvSource) -> Vec<Finding> {
+fn check_environment(model: &[Record], env_names: &[String]) -> Vec<Finding> {
     let declared: Vec<String> = model
         .iter()
         .flat_map(|r| r.env_names().into_iter().map(str::to_string))
@@ -234,7 +240,7 @@ fn check_environment(model: &[Record], env: &dyn EnvSource) -> Vec<Finding> {
         .collect();
 
     let mut findings = Vec::new();
-    for name in env.names() {
+    for name in env_names.iter().cloned() {
         if declared.contains(&name) {
             continue;
         }

@@ -6,7 +6,8 @@ use common::*;
 fn check(argv: &[&str], vars: &[(&str, &str)]) -> Vec<Finding> {
     let a = args(argv);
     let e = env(vars);
-    lint(&model(), &Invocation { args: &a, env: &e })
+    let resolution = Invocation { args: &a, env: &e }.resolve(&model());
+    lint(&model(), &resolution)
 }
 
 fn errors(f: &[Finding]) -> Vec<&Finding> {
@@ -150,13 +151,15 @@ fn checking_works_from_a_published_document_alone() {
 
     let a = args(&["--log-level", "loud"]);
     let e = env(&[("APP_KEY", "k")]);
-    let f = lint(&declared, &Invocation { args: &a, env: &e });
+    let resolution = Invocation { args: &a, env: &e }.resolve(&declared);
+    let f = lint(&declared, &resolution);
     assert!(f.iter().any(|f| matches!(f, Finding::InvalidValue { .. })));
 }
 
 #[test]
 fn an_environment_only_program_can_be_checked_without_arguments() {
     let e = env(&[("APP_HDR", "perhaps"), ("APP_KEY", "k")]);
-    let f = lint_env(&model(), &e);
+    let resolution = Invocation { args: &[], env: &e }.resolve(&model());
+    let f = lint(&model(), &resolution);
     assert!(f.iter().any(|f| matches!(f, Finding::InvalidValue { .. })));
 }

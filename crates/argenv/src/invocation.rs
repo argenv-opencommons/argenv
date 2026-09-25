@@ -94,6 +94,7 @@ impl<'a> Invocation<'a> {
             values,
             positionals: parsed.positionals,
             findings,
+            env_names: self.env.names(),
         }
     }
 }
@@ -104,6 +105,10 @@ pub struct Resolution {
     values: BTreeMap<String, Resolved>,
     positionals: Vec<String>,
     findings: Vec<Finding>,
+    /// Every environment variable name present at resolution time, for
+    /// near-miss detection in the lint pass. Snapshotted here so that
+    /// `lint` can operate on `&Resolution` alone, with no `Invocation` needed.
+    pub(crate) env_names: Vec<String>,
 }
 
 impl Resolution {

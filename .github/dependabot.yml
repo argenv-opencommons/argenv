@@ -22,3 +22,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # dtolnay/rust-toolchain@1.75.0 in the msrv job is the MSRV pin, not
+      # a version to keep current - Dependabot cannot tell "a version
+      # pinned as a floor to test against" from "a version to keep
+      # current", and opened exactly this PR (1.75.0 -> 1.120.0) for real,
+      # which would have silently turned the MSRV job into just another
+      # latest-Rust build. Closed without merging; same fix already proven
+      # on a sibling project (rustnix) for the identical bug.
+      - dependency-name: "dtolnay/rust-toolchain"

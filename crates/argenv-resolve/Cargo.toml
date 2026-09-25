@@ -19,7 +19,7 @@ name = "argenv-resolve-mock"
 path = "tests/fixtures/mock.rs"
 
 [dependencies]
-argenv = { path = "../argenv", version = "0.1" }
+argenv = { path = "../argenv", version = "0.2" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

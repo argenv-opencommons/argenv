@@ -38,6 +38,9 @@ jobs:
             contract
             lint
             api
+            resolve
+            examples
+            check
             ci
             deps
             release

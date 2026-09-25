@@ -430,9 +430,14 @@ fn valid_long(long: &str) -> Result<(), String> {
             ))
         }
     }
-    if long.starts_with("no-") {
-        return Err("starts with `no-`, which collides with the negation of another flag".into());
-    }
+    // No blanket rejection of names starting with `no-` here: many real
+    // flags are standalone (git's --no-pager, --no-edit; docker's --no-cache),
+    // not auto-generated negations of anything. The real risk - an explicit
+    // `no-X` colliding with the `--no-X` a *different*, negatable `X` input
+    // would generate - needs the whole model to detect (arg_labels() already
+    // includes the derived form for a negatable input), so check_unique
+    // already catches an actual collision; a single input's own check()
+    // cannot see other inputs to judge that here, and should not guess.
     for c in chars {
         if !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
             return Err(format!(

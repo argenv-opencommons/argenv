@@ -29,13 +29,15 @@ jobs:
         run: cargo clippy --workspace --all-features --all-targets -- -D warnings
 
       # The suite covers the model's rules, reading, linting, the wire document,
-      # the emitted schema, the command-line tool, and that the artefacts
-      # committed to this repository are the ones the current model produces.
+      # the emitted schema, the command-line tool, the mock-program integration
+      # tests (see the `integration` job below for why those get their own job
+      # too), and that the artefacts committed to this repository are the ones
+      # the current model produces.
       - name: Test
         run: cargo test --workspace --all-features
 
       - name: Docs (warnings are errors)
-        run: cargo doc --no-deps -p argenv --all-features
+        run: cargo doc --no-deps -p argenv -p argenv-resolve --all-features
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -59,9 +61,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Regenerate the example document
-        run: cargo run -p argenv --example consumer > /tmp/example.json
+        run: cargo run -p argenv-resolve --example consumer > /tmp/example.json
 
       - name: Validate with a third-party engine
         run: |
           python3 -m pip install --quiet jsonschema
           python3 dev/conformance.py /tmp/example.json api/v1/example.json
+
+  integration:
+    name: mock program integration tests
+    runs-on: ubuntu-latest
+    # The `test` job's `cargo test --workspace` already runs this file - it is
+    # broken out as its own job so a failure here reads as "a real feature or
+    # anti-pattern regressed in an actual running program", distinct from a
+    # unit-level assertion failing elsewhere in the workspace.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p argenv-resolve --test integration

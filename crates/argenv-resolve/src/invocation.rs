@@ -55,6 +55,9 @@ impl<'a> Invocation<'a> {
         let mut findings = Vec::new();
 
         let parsed = parse_args(model, self.args, &mut findings);
+
+        resolve_positionals(model, &parsed.positionals, &mut values);
+
         for (key, raw) in parsed.values {
             values.insert(
                 key,
@@ -65,9 +68,23 @@ impl<'a> Invocation<'a> {
             );
         }
 
+        // The raw token in the invocation's first positional, if any — the
+        // subcommand actually given, compared as a plain string against each
+        // scoped record's own `subcommands` list. No step here identifies
+        // "the one true dispatcher": a record with an empty `subcommands`
+        // list is simply always in scope, and one with a non-empty list is
+        // in scope exactly when this token is in it — the same rule
+        // `resolve_positionals` already applies to argv, applied here to env.
+        let active_subcommand = parsed.positionals.first();
+
         for r in model {
             if values.contains_key(&r.key) {
                 continue;
+            }
+            if !r.subcommands.is_empty()
+                && active_subcommand.map(|s| r.subcommands.contains(s)) != Some(true)
+            {
+                continue; // scoped to subcommands that were not given — correctly unresolved
             }
             if let Some(raw) = r.env_names().iter().find_map(|n| self.env.get(n)) {
                 values.insert(
@@ -141,6 +158,49 @@ impl Resolution {
 struct Parsed {
     values: BTreeMap<String, String>,
     positionals: Vec<String>,
+}
+
+/// Fill `values` from `positionals` for every record with `arg.position` set.
+///
+/// An unscoped record (`subcommands` empty) reads `positionals[position]`
+/// directly — `position` `0` is commonly a subcommand dispatch token, but
+/// nothing here requires that; a purely positional program with no dispatch
+/// at all (`cp <src> <dst>`) works the same way, one absolute slot each.
+///
+/// A record scoped to one or more subcommands reads `positionals[1 +
+/// position]` — one slot past the dispatch token — and only when the raw
+/// token at `positionals[0]` is one of its declared `subcommands`.
+/// Otherwise it is left unresolved, which is correct: for this invocation,
+/// that subcommand's input genuinely was not given.
+fn resolve_positionals(
+    model: &[Record],
+    positionals: &[String],
+    values: &mut BTreeMap<String, Resolved>,
+) {
+    let active_subcommand = positionals.first();
+
+    for r in model {
+        let Some(position) = r.arg.as_ref().and_then(|a| a.position) else {
+            continue;
+        };
+        let index = if r.subcommands.is_empty() {
+            position as usize
+        } else {
+            match active_subcommand {
+                Some(s) if r.subcommands.contains(s) => 1 + position as usize,
+                _ => continue, // wrong (or no) subcommand given — correctly unresolved
+            }
+        };
+        if let Some(raw) = positionals.get(index) {
+            values.insert(
+                r.key.clone(),
+                Resolved {
+                    raw: raw.clone(),
+                    source: Source::Arg,
+                },
+            );
+        }
+    }
 }
 
 /// Parse an argument vector against a model.

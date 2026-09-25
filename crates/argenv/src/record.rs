@@ -52,6 +52,10 @@ pub struct ArgBinding {
     /// Whether the flag may be repeated, accumulating values.
     #[serde(default)]
     pub repeatable: bool,
+    /// A bare positional slot instead of a named flag — see
+    /// [`crate::Arg::positional`]. Mutually exclusive with `long`/`short`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<u16>,
 }
 
 /// One input, flattened to plain JSON-friendly types.
@@ -126,6 +130,10 @@ pub struct Record {
     /// The argument-vector binding, if this input accepts one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arg: Option<ArgBinding>,
+    /// Restricts this input to one or more subcommands, by their token —
+    /// see [`crate::Input::subcommands`]. Empty means always active.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subcommands: Vec<String>,
 }
 
 fn unknown_stability() -> String {
@@ -166,6 +174,13 @@ impl Record {
         let Some(a) = &self.arg else {
             return String::new();
         };
+        if a.position.is_some() {
+            let placeholder = a
+                .value_name
+                .clone()
+                .unwrap_or_else(|| self.key.to_uppercase());
+            return format!("<{placeholder}>");
+        }
         let mut parts = Vec::new();
         if let Some(s) = &a.short {
             parts.push(format!("-{s}"));

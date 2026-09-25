@@ -103,7 +103,7 @@ fn an_arg_binding_needs_at_least_one_form() {
     assert!(NEITHER
         .check()
         .iter()
-        .any(|e| e.contains("neither a long nor a short")));
+        .any(|e| e.contains("neither a long/short form nor a position")));
 }
 
 #[test]

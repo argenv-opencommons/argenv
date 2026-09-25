@@ -25,6 +25,15 @@
           "description": "Whether --no-<long> is accepted.",
           "type": "boolean"
         },
+        "position": {
+          "description": "A bare positional slot instead of a named flag — see [`crate::Arg::positional`]. Mutually exclusive with `long`/`short`.",
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "repeatable": {
           "default": false,
           "description": "Whether the flag may be repeated, accumulating values.",
@@ -213,6 +222,13 @@
               "debug",
               "deprecated"
             ]
+          },
+          "subcommands": {
+            "description": "Restricts this input to one or more subcommands, by their token — see [`crate::Input::subcommands`]. Empty means always active.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "summary": {
             "description": "What the input does, in prose.",

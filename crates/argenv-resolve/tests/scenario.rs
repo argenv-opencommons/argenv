@@ -4,7 +4,7 @@
 //! surface, publishes it, and a completely separate consumer — with no access to
 //! the Rust types — uses that publication to catch a broken launch.
 mod common;
-use argenv::*;
+use argenv_resolve::*;
 use common::*;
 
 #[test]

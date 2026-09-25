@@ -152,10 +152,10 @@ impl std::fmt::Display for Finding {
 /// the common flow is:
 ///
 /// ```no_run
-/// # use argenv::*;
+/// # use argenv_resolve::*;
 /// # let model: Vec<Record> = vec![];
-/// let resolution = argenv::parse(&model);          // reads process args + env
-/// for finding in argenv::lint(&model, &resolution) {
+/// let resolution = argenv_resolve::parse(&model);          // reads process args + env
+/// for finding in argenv_resolve::lint(&model, &resolution) {
 ///     eprintln!("{:?}: {finding}", finding.severity());
 /// }
 /// ```

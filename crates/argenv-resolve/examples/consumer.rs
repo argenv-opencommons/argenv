@@ -8,7 +8,7 @@
 //! cargo run -p argenv --example consumer -- --bogus-flag
 //! cargo test -p argenv --example consumer
 //! ```
-use argenv::*;
+use argenv_resolve::*;
 use std::path::PathBuf;
 
 /// A render scale constrained to `0.1..=1.0`, stored as per-mille.

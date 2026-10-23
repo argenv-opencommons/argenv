@@ -181,6 +181,11 @@ See [`crates/argenv/examples/consumer.rs`](crates/argenv/examples/consumer.rs) f
 complete model covering both bindings, custom domain types, negation, repetition and
 deprecation.
 
+For something small and familiar, [`minigrep.rs`](crates/argenv-resolve/examples/minigrep.rs) is
+the Rust Book's chapter 12 `grep` with its two arguments and its `IGNORE_CASE` variable declared
+once: the same setting through a flag or the variable, a typo caught with a suggestion, and the
+usage text generated from the declaration.
+
 The test suite doubles as the specification: every rule is one test, named as a sentence.
 [`tests/scenario.rs`](crates/argenv/tests/scenario.rs) walks the whole life of a contract —
 declared, published, read back by an unrelated consumer, and used to catch a broken launch —

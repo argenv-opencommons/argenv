@@ -22,6 +22,136 @@ fn a_satisfied_invocation_reports_nothing() {
     assert!(errors(&f).is_empty(), "{f:#?}");
 }
 
+// ---- how seriously each finding is taken: the policy ------------------------------------
+
+fn typo_findings() -> Vec<Finding> {
+    check(&["--log-levl", "warn"], &[("APP_LOG_LEVL", "warn")])
+}
+
+fn severity_of(policy: &LintPolicy, f: &[Finding], which: fn(&Finding) -> bool) -> Severity {
+    policy.severity(f.iter().find(|f| which(f)).expect("the finding is there"))
+}
+
+fn is_flag_typo(f: &Finding) -> bool {
+    matches!(f, Finding::UnknownArg { .. })
+}
+
+fn is_variable_typo(f: &Finding) -> bool {
+    matches!(f, Finding::UnknownEnv { .. })
+}
+
+#[test]
+fn a_misspelled_flag_is_an_error_by_default() {
+    let f = typo_findings();
+    assert_eq!(
+        f.iter().find(|f| is_flag_typo(f)).unwrap().severity(),
+        Severity::Error
+    );
+    assert_eq!(
+        severity_of(&LintPolicy::default(), &f, is_flag_typo),
+        Severity::Error
+    );
+}
+
+#[test]
+fn a_misspelled_variable_is_an_error_by_default() {
+    let f = typo_findings();
+    assert_eq!(
+        f.iter().find(|f| is_variable_typo(f)).unwrap().severity(),
+        Severity::Error
+    );
+}
+
+#[test]
+fn the_lenient_policy_takes_both_kinds_of_typo_as_warnings() {
+    let f = typo_findings();
+    let lenient = LintPolicy::lenient();
+    assert_eq!(severity_of(&lenient, &f, is_flag_typo), Severity::Warning);
+    assert_eq!(
+        severity_of(&lenient, &f, is_variable_typo),
+        Severity::Warning
+    );
+}
+
+#[test]
+fn each_kind_can_be_relaxed_on_its_own() {
+    let f = typo_findings();
+    let flags_only = LintPolicy::default().unknown_flags(Severity::Warning);
+    assert_eq!(
+        severity_of(&flags_only, &f, is_flag_typo),
+        Severity::Warning
+    );
+    assert_eq!(
+        severity_of(&flags_only, &f, is_variable_typo),
+        Severity::Error
+    );
+
+    let variables_only = LintPolicy::default().unknown_variables(Severity::Warning);
+    assert_eq!(
+        severity_of(&variables_only, &f, is_flag_typo),
+        Severity::Error
+    );
+    assert_eq!(
+        severity_of(&variables_only, &f, is_variable_typo),
+        Severity::Warning
+    );
+}
+
+#[test]
+fn a_policy_can_also_be_stricter_about_deprecation() {
+    let f = check(&["--profile", "x"], &[]);
+    let dep = f
+        .iter()
+        .find(|f| matches!(f, Finding::Deprecated { .. }))
+        .expect("deprecated");
+    assert_eq!(LintPolicy::default().severity(dep), Severity::Warning);
+    assert_eq!(
+        LintPolicy::default()
+            .deprecated(Severity::Error)
+            .severity(dep),
+        Severity::Error
+    );
+}
+
+#[test]
+fn a_bad_value_is_an_error_whatever_the_policy() {
+    // There is no usable reading of a value outside its domain, so no policy can excuse it. Both
+    // ways of getting it wrong: a scalar outside its set, and a member of a list outside its set.
+    let scalar = check(&["--log-level", "loud"], &[]);
+    let member = check(&["--hud", "fps,bogus"], &[("APP_KEY", "k")]);
+    let value_problems: Vec<&Finding> = scalar
+        .iter()
+        .chain(member.iter())
+        .filter(|f| {
+            matches!(
+                f,
+                Finding::InvalidValue { .. } | Finding::UnknownToken { .. }
+            )
+        })
+        .collect();
+    assert!(
+        value_problems.len() >= 2,
+        "both kinds of bad value are found: {scalar:?} {member:?}"
+    );
+    for finding in value_problems {
+        for policy in [
+            LintPolicy::default(),
+            LintPolicy::lenient(),
+            LintPolicy::lenient().unknown_flags(Severity::Warning),
+        ] {
+            assert_eq!(policy.severity(finding), Severity::Error, "{finding}");
+        }
+    }
+}
+
+#[test]
+fn the_default_policy_is_strict_and_a_findings_own_severity_is_its_answer() {
+    assert_eq!(LintPolicy::default(), LintPolicy::strict());
+    for f in typo_findings() {
+        assert_eq!(f.severity(), LintPolicy::strict().severity(&f));
+    }
+}
+
 #[test]
 fn a_misspelled_flag_is_caught_with_a_suggestion() {
     let f = check(&["--log-levl", "warn"], &[("APP_KEY", "k")]);

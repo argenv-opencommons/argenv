@@ -90,8 +90,19 @@ fn a_contract_is_declared_published_and_used_to_catch_a_broken_launch() {
         .iter()
         .filter(|f| f.severity() == Severity::Warning)
         .count();
-    assert_eq!(errors, 3, "invalid value, unknown token, missing required");
-    assert_eq!(warnings, 3, "two typos and the deprecated input");
+    assert_eq!(
+        errors, 5,
+        "invalid value, unknown token, missing required, and the two typos"
+    );
+    assert_eq!(warnings, 1, "the deprecated input");
+
+    // A project that wants to be forgiving about typos says so once; nothing else moves.
+    let lenient = LintPolicy::lenient();
+    let lenient_errors = findings
+        .iter()
+        .filter(|f| lenient.severity(f) == Severity::Error)
+        .count();
+    assert_eq!(lenient_errors, 3, "only the values are still errors");
 
     // ---- 7. A corrected invocation resolves cleanly, and says where from. --
     let argv = args(&["--log-level", "warn"]);

@@ -151,10 +151,24 @@ macro_rules! contract {
             /// input) before touching argv/env, so they never reach production.
             /// Applies `policy` to invocation problems (user mistakes).
             pub fn parse_and_lint(policy: $crate::OnProblems) -> $crate::Resolution {
+                Contract::parse_and_lint_with(policy, &$crate::LintPolicy::default())
+            }
+
+            /// [`Self::parse_and_lint`] with this program's own [`LintPolicy`]:
+            /// which findings are errors and which are only warnings. The default
+            /// treats a misspelled flag or variable as an error.
+            pub fn parse_and_lint_with(
+                on: $crate::OnProblems,
+                lint_policy: &$crate::LintPolicy,
+            ) -> $crate::Resolution {
                 let p = Contract::problems();
                 assert!(p.is_empty(), "declaration errors: {p:#?}");
                 let resolved = $crate::parse(&Contract::records());
-                $crate::handle_problems(&$crate::lint(&Contract::records(), &resolved), policy);
+                $crate::handle_problems_with(
+                    &$crate::lint(&Contract::records(), &resolved),
+                    on,
+                    lint_policy,
+                );
                 resolved
             }
         }
@@ -170,8 +184,8 @@ mod source;
 pub use argenv::*;
 pub use ext::{InputResolveDefaultExt, InputResolveExt};
 pub use invocation::{Invocation, Resolution, Resolved, Source};
-pub use lint::{lint, Finding, Severity};
-pub use problems::{handle_problems, OnProblems};
+pub use lint::{lint, Finding, LintPolicy, Severity};
+pub use problems::{handle_problems, handle_problems_with, OnProblems};
 pub use source::{EnvSource, ProcessEnv};
 
 /// Parse the current process's argument vector and environment against a

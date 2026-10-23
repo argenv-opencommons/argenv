@@ -253,19 +253,64 @@ fn lint_checks_arguments_and_environment_together() {
 }
 
 #[test]
-fn lint_warns_about_typos_in_either_surface_without_failing() {
+fn lint_fails_on_a_typo_in_either_surface_by_default() {
     let p = write_temp("lint-typo", &valid_document());
     let path = p.to_str().unwrap();
 
     let flag = run_with_env(&["lint", path, "--", "--log-levl", "warn"], &[]);
-    assert!(String::from_utf8_lossy(&flag.stderr).contains("did you mean --log-level"));
+    let stderr = String::from_utf8_lossy(&flag.stderr);
+    assert!(stderr.contains("did you mean --log-level"), "{stderr}");
     assert!(
-        flag.status.success(),
-        "a suspected typo is reported, not fatal"
+        stderr.contains("error:"),
+        "a typo'd flag is an error: {stderr}"
     );
+    assert!(!flag.status.success());
 
     let var = run_with_env(&["lint", path], &[("APP_LOG_LEVL", "warn")]);
-    assert!(String::from_utf8_lossy(&var.stderr).contains("did you mean APP_LOG_LEVEL"));
+    let stderr = String::from_utf8_lossy(&var.stderr);
+    assert!(stderr.contains("did you mean APP_LOG_LEVEL"), "{stderr}");
+    assert!(!var.status.success(), "a typo'd variable is an error too");
+}
+
+#[test]
+fn lint_lenient_reports_typos_as_warnings_and_succeeds() {
+    let p = write_temp("lint-lenient", &valid_document());
+    let path = p.to_str().unwrap();
+
+    let flag = run_with_env(
+        &["lint", "--lenient", path, "--", "--log-levl", "warn"],
+        &[],
+    );
+    let stderr = String::from_utf8_lossy(&flag.stderr);
+    assert!(
+        stderr.contains("warning:") && stderr.contains("did you mean --log-level"),
+        "{stderr}"
+    );
+    assert!(flag.status.success(), "lenient: reported, not fatal");
+
+    let var = run_with_env(&["lint", "--lenient", path], &[("APP_LOG_LEVL", "warn")]);
+    assert!(String::from_utf8_lossy(&var.stderr).contains("warning:"));
+    assert!(var.status.success());
+}
+
+#[test]
+fn lint_lenient_is_not_lenient_about_values() {
+    let p = write_temp("lint-lenient-value", &valid_document());
+    let out = run_with_env(
+        &[
+            "lint",
+            "--lenient",
+            p.to_str().unwrap(),
+            "--",
+            "--log-level",
+            "loud",
+        ],
+        &[],
+    );
+    assert!(
+        !out.status.success(),
+        "an out-of-domain value is an error under any policy"
+    );
 }
 
 #[test]

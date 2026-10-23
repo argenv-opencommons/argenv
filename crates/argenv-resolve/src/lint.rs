@@ -15,6 +15,99 @@ pub enum Severity {
     Error,
 }
 
+/// How serious each kind of finding is *for one program*.
+///
+/// By default a misspelled flag and a misspelled variable are **errors**: the user's intent is
+/// clear and wrong, and carrying on would run the program without the setting they asked for.
+/// A project that has a reason to be more forgiving says so, once, in its own code:
+///
+/// ```
+/// use argenv_resolve::{LintPolicy, Severity};
+///
+/// // Everything strict (this is the default):
+/// let strict = LintPolicy::default();
+///
+/// // The previous behaviour: surface typos, never stop for them.
+/// let lenient = LintPolicy::lenient();
+///
+/// // Or one class at a time, for example a wrapper that forwards unknown flags to a child:
+/// let wrapper = LintPolicy::default().unknown_flags(Severity::Warning);
+/// # let _ = (strict, lenient, wrapper);
+/// ```
+///
+/// The findings themselves do not change with the policy, only how seriously they are taken. A
+/// problem with a *value* (out of domain, unparseable, missing) is always an error: there is no
+/// usable reading of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LintPolicy {
+    unknown_flag: Severity,
+    unknown_variable: Severity,
+    deprecated: Severity,
+}
+
+impl Default for LintPolicy {
+    fn default() -> Self {
+        Self::strict()
+    }
+}
+
+impl LintPolicy {
+    /// Typos in flags and variables are errors; use of a deprecated input is a warning.
+    pub const fn strict() -> Self {
+        Self {
+            unknown_flag: Severity::Error,
+            unknown_variable: Severity::Error,
+            deprecated: Severity::Warning,
+        }
+    }
+
+    /// Typos are surfaced but never stop the program. This was the behaviour before strictness
+    /// became the default; it is the right choice for a program that forwards flags it does not
+    /// declare, or that runs in environments it does not control.
+    pub const fn lenient() -> Self {
+        Self {
+            unknown_flag: Severity::Warning,
+            unknown_variable: Severity::Warning,
+            deprecated: Severity::Warning,
+        }
+    }
+
+    /// How seriously to take a flag that no input declares.
+    #[must_use]
+    pub const fn unknown_flags(mut self, severity: Severity) -> Self {
+        self.unknown_flag = severity;
+        self
+    }
+
+    /// How seriously to take a variable that closely resembles a declared one.
+    #[must_use]
+    pub const fn unknown_variables(mut self, severity: Severity) -> Self {
+        self.unknown_variable = severity;
+        self
+    }
+
+    /// How seriously to take the use of a deprecated input.
+    #[must_use]
+    pub const fn deprecated(mut self, severity: Severity) -> Self {
+        self.deprecated = severity;
+        self
+    }
+
+    /// The severity this policy gives a finding.
+    pub fn severity(&self, finding: &Finding) -> Severity {
+        match finding {
+            Finding::UnknownArg { .. } => self.unknown_flag,
+            Finding::UnknownEnv { .. } => self.unknown_variable,
+            Finding::Deprecated { .. } => self.deprecated,
+            Finding::InvalidValue { .. }
+            | Finding::UnknownToken { .. }
+            | Finding::MissingRequired { .. }
+            | Finding::MissingValue { .. }
+            | Finding::UnexpectedValue { .. } => Severity::Error,
+        }
+    }
+}
+
 /// Something wrong with an invocation, relative to the declared contract.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Finding {
@@ -84,18 +177,10 @@ pub enum Finding {
 }
 
 impl Finding {
-    /// How seriously to take this finding.
+    /// How seriously to take this finding under the default, strict, [`LintPolicy`]. A program
+    /// with different needs asks its own policy: [`LintPolicy::severity`].
     pub fn severity(&self) -> Severity {
-        match self {
-            Finding::InvalidValue { .. }
-            | Finding::UnknownToken { .. }
-            | Finding::MissingRequired { .. }
-            | Finding::MissingValue { .. }
-            | Finding::UnexpectedValue { .. } => Severity::Error,
-            Finding::UnknownArg { .. }
-            | Finding::UnknownEnv { .. }
-            | Finding::Deprecated { .. } => Severity::Warning,
-        }
+        LintPolicy::default().severity(self)
     }
 }
 

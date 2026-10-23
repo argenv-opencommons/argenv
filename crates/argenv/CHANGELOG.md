@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to argenv are documented here.
+## [0.3.1]
+
+
+
 ## [0.3.0]
 
 

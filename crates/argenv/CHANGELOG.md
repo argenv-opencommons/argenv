@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to argenv are documented here.
+## [0.3.0]
+
+
+### Miscellaneous
+- Ship the license texts inside every published crate ([#23](https://github.com/argenv-opencommons/argenv/pull/23)) ([3673549])
+
+
+
 ## [0.2.0]
 
 

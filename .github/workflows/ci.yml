@@ -23,6 +23,15 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
+      # Each published crate carries its own copy of the license texts (cargo packages a
+      # crate from its own directory, so a file at the repository root does not travel).
+      - name: License files are identical in every published crate
+        run: |
+          for crate in crates/argenv crates/argenv-resolve; do
+            cmp LICENSE-MIT "$crate/LICENSE-MIT"
+            cmp LICENSE-APACHE "$crate/LICENSE-APACHE"
+          done
+
       # --all-targets so tests and examples are linted too: a lint that only
       # fires in a test target is still a lint.
       - name: Clippy

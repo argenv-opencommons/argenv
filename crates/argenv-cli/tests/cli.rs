@@ -179,6 +179,46 @@ fn check_rejects_every_kind_of_malformed_entry() {
 }
 
 #[test]
+fn check_accepts_the_subcommands_field_the_model_itself_emits() {
+    let mut doc = valid_document();
+    doc["inputs"][0]["subcommands"] = serde_json::json!(["create", "delete"]);
+    let p = write_temp("subcommands", &doc);
+    let out = run(&["check", p.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn check_recognises_every_field_the_schema_declares() {
+    // The list of known fields is read from the schema, so a field added to the model can
+    // never be rejected by the tool that validates the model's own documents.
+    let schema = argenv::contract::json_schema();
+    let fields: Vec<String> = schema["properties"]["inputs"]["items"]["properties"]
+        .as_object()
+        .expect("the schema describes a record's fields")
+        .keys()
+        .cloned()
+        .collect();
+    assert!(
+        fields.iter().any(|f| f == "subcommands"),
+        "the schema should describe `subcommands`: {fields:?}"
+    );
+    for field in fields {
+        let mut doc = valid_document();
+        doc["inputs"][0][&field] = serde_json::Value::Null;
+        let p = write_temp(&format!("field-{field}"), &doc);
+        let out = run(&["check", p.to_str().unwrap()]);
+        assert!(
+            !String::from_utf8_lossy(&out.stderr).contains("unrecognised field"),
+            "`{field}` is in the schema but check does not recognise it"
+        );
+    }
+}
+
+#[test]
 fn check_flags_an_unrecognised_field_so_a_typo_is_visible() {
     let mut doc = valid_document();
     doc["inputs"][0]["sumary"] = serde_json::json!("misspelled");

@@ -233,27 +233,17 @@ fn cmd_usage(args: &[String]) -> ExitCode {
 /// Fields this version of the contract knows. Anything else is reported so an
 /// authoring typo is visible, without making the document invalid: later
 /// versions legitimately add fields.
-const KNOWN_FIELDS: &[&str] = &[
-    "key",
-    "type",
-    "default",
-    "allowed",
-    "separators",
-    "required",
-    "stability",
-    "since",
-    "deprecation",
-    "group",
-    "maps_to",
-    "example",
-    "observe",
-    "reviewed",
-    "summary",
-    "modified",
-    "source",
-    "env",
-    "arg",
-];
+/// The fields a record may carry, read from the model's own schema.
+///
+/// This used to be a hand-kept list, and it drifted: `subcommands` was added to the model
+/// and not to the list, so `argenv check` rejected the very document the model emits. Asking
+/// the schema, which is generated from the same type, makes that impossible.
+fn known_fields() -> std::collections::BTreeSet<String> {
+    contract::json_schema()["properties"]["inputs"]["items"]["properties"]
+        .as_object()
+        .map(|properties| properties.keys().cloned().collect())
+        .unwrap_or_default()
+}
 
 fn validate_document(doc: &Value) -> Vec<String> {
     let mut errs = Vec::new();
@@ -272,6 +262,7 @@ fn validate_document(doc: &Value) -> Vec<String> {
         return errs;
     };
 
+    let known = known_fields();
     let mut keys = std::collections::BTreeSet::new();
     let mut flags = std::collections::BTreeSet::new();
     let mut names = std::collections::BTreeSet::new();
@@ -292,7 +283,7 @@ fn validate_document(doc: &Value) -> Vec<String> {
 
         if let Some(obj) = v.as_object() {
             for k in obj.keys() {
-                if !KNOWN_FIELDS.contains(&k.as_str()) {
+                if !known.contains(k.as_str()) {
                     errs.push(format!(
                         "{at}: unrecognised field `{k}` (a typo, or a field from a later contract version)"
                     ));

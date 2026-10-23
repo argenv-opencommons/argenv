@@ -28,15 +28,17 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-features --all-targets -- -D warnings
 
-      # The suite covers the model's rules, reading, linting, the wire document,
-      # the emitted schema, the command-line tool, every example's own tests
-      # (--examples - not run by default, and every example so far has had
-      # real tests worth catching a regression in), the mock-program
-      # integration tests (see the `integration` job below for why those get
-      # their own job too), and that the artefacts committed to this
-      # repository are the ones the current model produces.
+      # `--all-targets` is every target that can hold a test: the library and binary unit
+      # tests, `tests/*.rs` (the specification: scenario, declaration, reading, linting,
+      # document, schema, cli, integration), the examples and their own tests, and the
+      # mock program. It must not be `--examples`: that flag *restricts* cargo to the
+      # examples, which is what this step did before, so none of the specification ran.
       - name: Test
-        run: cargo test --workspace --all-features --examples
+        run: cargo test --workspace --all-features --all-targets
+
+      # `--all-targets` does not include documentation tests.
+      - name: Documentation tests
+        run: cargo test --workspace --all-features --doc
 
       - name: Docs (warnings are errors)
         run: cargo doc --no-deps -p argenv -p argenv-resolve --all-features
@@ -73,7 +75,7 @@ jobs:
   integration:
     name: mock program integration tests
     runs-on: ubuntu-latest
-    # The `test` job's `cargo test --workspace` already runs this file - it is
+    # The `test` job's `cargo test --all-targets` already runs this file - it is
     # broken out as its own job so a failure here reads as "a real feature or
     # anti-pattern regressed in an actual running program", distinct from a
     # unit-level assertion failing elsewhere in the workspace.

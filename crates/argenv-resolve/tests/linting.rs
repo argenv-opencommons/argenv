@@ -122,6 +122,73 @@ fn a_missing_required_input_says_how_it_could_have_been_supplied() {
     );
 }
 
+/// A program with two subcommands, where only `delete` needs its argument.
+fn scoped_model() -> Vec<Record> {
+    let id: Input<String, &'static str> = Input {
+        key: "id",
+        ty: Type::String,
+        required: true,
+        subcommands: &["delete"],
+        arg: Some(Arg {
+            value_name: "ID",
+            ..Arg::positional(0)
+        }),
+        ..Input::EMPTY
+    };
+    let json: Input<bool, &'static str> = Input {
+        key: "json",
+        ty: Type::Bool,
+        default: Some(false),
+        arg: Some(Arg::long("json")),
+        ..Input::EMPTY
+    };
+    vec![id.to_record(), json.to_record()]
+}
+
+fn check_scoped(argv: &[&str]) -> Vec<Finding> {
+    let a = args(argv);
+    let e = env(&[]);
+    let model = scoped_model();
+    let resolution = Invocation { args: &a, env: &e }.resolve(&model);
+    lint(&model, &resolution)
+}
+
+fn missing(f: &[Finding]) -> bool {
+    f.iter()
+        .any(|f| matches!(f, Finding::MissingRequired { key, .. } if key == "id"))
+}
+
+#[test]
+fn a_required_input_is_missing_when_its_own_subcommand_runs_without_it() {
+    assert!(missing(&check_scoped(&["delete"])));
+}
+
+#[test]
+fn a_required_input_is_satisfied_when_its_own_subcommand_supplies_it() {
+    assert!(!missing(&check_scoped(&["delete", "42"])));
+}
+
+#[test]
+fn a_required_input_scoped_to_another_subcommand_is_not_missing() {
+    assert!(!missing(&check_scoped(&["list"])));
+    assert!(!missing(&check_scoped(&["list", "--json"])));
+}
+
+#[test]
+fn a_scoped_required_input_is_not_demanded_when_no_subcommand_runs() {
+    assert!(!missing(&check_scoped(&[])));
+    assert!(!missing(&check_scoped(&["--json"])));
+}
+
+#[test]
+fn an_unscoped_required_input_is_still_demanded_everywhere() {
+    // The long-standing behaviour: no scope means every invocation needs it.
+    let f = check(&[], &[]);
+    assert!(f
+        .iter()
+        .any(|f| matches!(f, Finding::MissingRequired { key, .. } if key == "licence_key")));
+}
+
 #[test]
 fn a_deprecated_input_in_use_is_a_warning_that_names_its_successor() {
     let f = check(&["--profile"], &[("APP_KEY", "k")]);

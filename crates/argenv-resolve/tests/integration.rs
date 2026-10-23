@@ -135,17 +135,45 @@ fn wrong_type_for_a_uint_option_is_rejected_not_silently_zero() {
 }
 
 #[test]
-fn unknown_flag_under_a_valid_subcommand_is_a_warning_not_a_hard_failure() {
-    // An unknown flag name is a Severity::Warning (surfaced, not silently
-    // dropped) - unlike an unparseable value, which is a Severity::Error and
-    // does stop the program (see wrong_type_for_a_uint_option above). Real,
-    // deliberate distinction: a typo'd flag name might still be a usable
-    // invocation; a value that can't be parsed as its declared type can't.
+fn a_misspelled_flag_stops_the_program_by_default() {
+    // The user's intent is clear and wrong. Carrying on would run the program without the
+    // setting they asked for, and they would find out far from the cause. (An earlier version
+    // of this suite pinned the opposite on the grounds that a typo'd flag "might still be a
+    // usable invocation"; the maintainers reversed that: an error by default, forgivable by
+    // choice, see the next test.)
     let (ok, stdout, stderr) = run(&["build", "app", "--bogus-flag"], &[]);
-    assert!(ok, "an unknown flag alone should not be fatal");
+    assert!(!ok, "a misspelled flag must be fatal by default");
     assert!(
         stderr.contains("--bogus-flag"),
-        "but it must still be surfaced: {stderr}"
+        "and it must say which flag: {stderr}"
+    );
+    assert!(
+        stdout.is_empty(),
+        "must not run the program for a rejected invocation"
+    );
+}
+
+#[test]
+fn a_project_can_choose_to_carry_on_past_a_misspelled_flag() {
+    // The same invocation with the project's own, more forgiving, LintPolicy: surfaced, never
+    // fatal. This is the per-project knob; nothing about the contract changes.
+    let (ok, stdout, stderr) = run(&["build", "app", "--bogus-flag"], &[("MOCK_LENIENT", "1")]);
+    assert!(ok, "a lenient project carries on");
+    assert!(
+        stderr.contains("--bogus-flag") && stderr.contains("warning"),
+        "but it is still surfaced, as a warning: {stderr}"
     );
     assert!(stdout.contains(r#"target=Some("app")"#));
+}
+
+#[test]
+fn leniency_is_only_about_typos_a_bad_value_is_fatal_for_every_project() {
+    let (ok, _, stderr) = run(
+        &["build", "app", "--jobs", "many"],
+        &[("MOCK_LENIENT", "1")],
+    );
+    assert!(
+        !ok,
+        "a value that cannot be parsed has no usable reading: {stderr}"
+    );
 }

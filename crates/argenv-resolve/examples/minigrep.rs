@@ -116,11 +116,11 @@ pub fn usage() -> String {
 }
 
 fn main() -> ExitCode {
-    // `FailOnAny`, not `FailOnError`: an unrecognised flag is classed as a warning, so with
-    // `FailOnError` a typo such as `--ignore-cas` would be reported and the search would then
-    // run case-sensitively. For a program where a flag changes the result, that is the wrong
-    // default. (Tracked in argenv-opencommons/argenv#26.)
-    let resolution = Contract::parse_and_lint(OnProblems::FailOnAny);
+    // A misspelled flag or variable is an error by default, so `--ignore-cas` stops the program
+    // here instead of running the search case-sensitively. A program that would rather carry on
+    // says so with its own policy: `Contract::parse_and_lint_with(OnProblems::FailOnError,
+    // &LintPolicy::lenient())`.
+    let resolution = Contract::parse_and_lint(OnProblems::FailOnError);
 
     if Contract::HELP.get_from_or_default(&resolution) == Some(true) {
         print!("{}", usage());

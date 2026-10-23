@@ -3,11 +3,11 @@
 //! ```text
 //! argenv schema [-o PATH]        emit the JSON Schema contract
 //! argenv check PATH...           validate contract documents
-//! argenv lint PATH [-- ARGS...]  check this invocation against a contract
+//! argenv lint [--lenient] PATH [-- ARGS...]  check this invocation against a contract
 //! argenv usage PATH              render the help text a contract implies
 //! ```
 use argenv::{contract, Record};
-use argenv_resolve::{lint, Invocation, ProcessEnv, Severity};
+use argenv_resolve::{lint, Invocation, LintPolicy, ProcessEnv, Severity};
 use serde_json::Value;
 use std::process::ExitCode;
 
@@ -41,7 +41,7 @@ fn print_help() {
          USAGE\n    \
              argenv schema [-o PATH]         emit the JSON Schema contract\n    \
              argenv check PATH...            validate contract documents\n    \
-             argenv lint PATH [-- ARGS...]   check this invocation against a contract\n    \
+             argenv lint [--lenient] PATH [-- ARGS...]   check this invocation against a contract\n    \
              argenv usage PATH               render the help text a contract implies\n    \
              argenv --version | --help\n",
         env!("CARGO_PKG_VERSION")
@@ -154,8 +154,14 @@ fn cmd_lint(args: &[String]) -> ExitCode {
         Some(i) => (&args[..i], args[i + 1..].to_vec()),
         None => (args, Vec::new()),
     };
-    let Some(path) = paths.first() else {
-        eprintln!("argenv: usage: lint PATH [-- ARGS...]");
+    // Typos in flags and variables are errors unless the caller says otherwise.
+    let policy = if paths.iter().any(|p| p == "--lenient") {
+        LintPolicy::lenient()
+    } else {
+        LintPolicy::default()
+    };
+    let Some(path) = paths.iter().find(|p| p.as_str() != "--lenient") else {
+        eprintln!("argenv: usage: lint [--lenient] PATH [-- ARGS...]");
         return ExitCode::from(2);
     };
     let records = match read_document(path) {
@@ -179,7 +185,7 @@ fn cmd_lint(args: &[String]) -> ExitCode {
     }
     let mut errors = 0usize;
     for f in &findings {
-        match f.severity() {
+        match policy.severity(f) {
             Severity::Error => {
                 errors += 1;
                 eprintln!("error: {f}");

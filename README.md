@@ -36,11 +36,31 @@ $ APP_LOG_LEVL=warn argenv lint myapp.argenv.json -- --hud fps,bogus --hdr=yes
 error:   hud contains unknown token `bogus`; accepted: fps, gpuload, memory
 error:   --hdr takes no value
 error:   licence_key is required; supply it with --licence-key or APP_KEY
-warning: APP_LOG_LEVL is not declared; did you mean APP_LOG_LEVEL?
+error:   APP_LOG_LEVL is not declared; did you mean APP_LOG_LEVEL?
 ```
 
 That runs against a **published contract document**, so it works for programs written
 in any language — including ones that never adopted this crate.
+
+### How strict, and who decides
+
+A misspelled flag or variable is an **error by default**: the intent is clear and wrong, and
+carrying on would run the program without the setting the user asked for. A program that has a
+reason to be more forgiving (a wrapper that forwards flags it does not declare, a tool that runs
+in environments it does not control) says so once, in its own code:
+
+```rust
+use argenv_resolve::{LintPolicy, OnProblems, Severity};
+
+// the previous behaviour: typos are surfaced, never fatal
+let resolved = Contract::parse_and_lint_with(OnProblems::FailOnError, &LintPolicy::lenient());
+
+// or one kind at a time
+let policy = LintPolicy::default().unknown_flags(Severity::Warning);
+```
+
+On the command line, `argenv lint --lenient PATH` does the same. A bad *value* (out of its domain,
+unparseable, missing) is an error under every policy: there is no usable reading of it.
 
 ---
 

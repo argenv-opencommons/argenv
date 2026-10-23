@@ -11,7 +11,7 @@
 //! handle_problems(&findings, OnProblems::FailOnError);
 //! ```
 
-use crate::{Finding, Severity};
+use crate::{Finding, LintPolicy, Severity};
 
 /// What to do when [`crate::lint`] returns findings.
 ///
@@ -22,9 +22,11 @@ pub enum OnProblems {
     /// Print errors and warnings to stderr; exit with status 1 on any error.
     /// Warnings alone are printed but do not stop the program.
     ///
-    /// This is the right default for most programs: a misspelled flag is
-    /// an error (the intent is clear but wrong), an unknown env var is a
-    /// warning (it might just be a coincidence).
+    /// This is the right default for most programs: a misspelled flag or
+    /// variable is an error (the intent is clear but wrong), and use of a
+    /// deprecated input is a warning. What counts as an error is decided by
+    /// the [`LintPolicy`]; the default is strict, and a program that wants to
+    /// be more forgiving passes its own to [`handle_problems_with`].
     FailOnError,
 
     /// Print all findings to stderr; exit with status 1 if there is anything
@@ -52,6 +54,9 @@ pub enum OnProblems {
 /// Prints findings to stderr and exits the process if the policy requires it.
 /// Returns normally when the policy allows the program to continue.
 ///
+/// Severities come from the default, strict, [`LintPolicy`]; see
+/// [`handle_problems_with`] to use another.
+///
 /// ```no_run
 /// # use argenv_resolve::*;
 /// # let model: Vec<Record> = vec![];
@@ -59,20 +64,36 @@ pub enum OnProblems {
 /// handle_problems(&lint(&model, &resolved), OnProblems::FailOnError);
 /// ```
 pub fn handle_problems(findings: &[Finding], policy: OnProblems) {
-    if findings.is_empty() || policy == OnProblems::Ignore {
+    handle_problems_with(findings, policy, &LintPolicy::default());
+}
+
+/// [`handle_problems`], with this program's own idea of how serious each finding is.
+///
+/// ```no_run
+/// # use argenv_resolve::*;
+/// # let model: Vec<Record> = vec![];
+/// # let resolved = argenv_resolve::parse(&model);
+/// // A wrapper that forwards flags it does not declare: typos are only worth a warning.
+/// let forgiving = LintPolicy::default().unknown_flags(Severity::Warning);
+/// handle_problems_with(&lint(&model, &resolved), OnProblems::FailOnError, &forgiving);
+/// ```
+pub fn handle_problems_with(findings: &[Finding], on: OnProblems, policy: &LintPolicy) {
+    if findings.is_empty() || on == OnProblems::Ignore {
         return;
     }
 
     for f in findings {
-        let label = match f.severity() {
+        let label = match policy.severity(f) {
             Severity::Error => "error",
             Severity::Warning => "warning",
         };
         eprintln!("{label}: {f}");
     }
 
-    let should_exit = match policy {
-        OnProblems::FailOnError => findings.iter().any(|f| f.severity() == Severity::Error),
+    let should_exit = match on {
+        OnProblems::FailOnError => findings
+            .iter()
+            .any(|f| policy.severity(f) == Severity::Error),
         OnProblems::FailOnAny => !findings.is_empty(),
         OnProblems::WarnOnly | OnProblems::Ignore => false,
     };

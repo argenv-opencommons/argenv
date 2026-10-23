@@ -122,7 +122,14 @@ contract! {
 }
 
 fn main() {
-    let r = Contract::parse_and_lint(OnProblems::FailOnError);
+    // A project decides how forgiving it is, in its own code. `MOCK_LENIENT` stands in for that
+    // decision so the integration tests can show both choices.
+    let policy = if std::env::var_os("MOCK_LENIENT").is_some() {
+        LintPolicy::lenient()
+    } else {
+        LintPolicy::default()
+    };
+    let r = Contract::parse_and_lint_with(OnProblems::FailOnError, &policy);
 
     let verbose = Contract::VERBOSE.get_from_or_default(&r).unwrap_or(false);
     let config = Contract::CONFIG.get_from(&r);

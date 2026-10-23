@@ -17,8 +17,9 @@ pub enum Severity {
 
 /// How serious each kind of finding is *for one program*.
 ///
-/// By default a misspelled flag and a misspelled variable are **errors**: the user's intent is
-/// clear and wrong, and carrying on would run the program without the setting they asked for.
+/// By default a misspelled flag, a misspelled variable and a flag given to a subcommand it does
+/// not belong to are all **errors**: the user's intent is clear and wrong, and carrying on would
+/// run the program without the setting they asked for.
 /// A project that has a reason to be more forgiving says so, once, in its own code:
 ///
 /// ```
@@ -42,6 +43,7 @@ pub enum Severity {
 pub struct LintPolicy {
     unknown_flag: Severity,
     unknown_variable: Severity,
+    out_of_scope_flag: Severity,
     deprecated: Severity,
 }
 
@@ -57,6 +59,7 @@ impl LintPolicy {
         Self {
             unknown_flag: Severity::Error,
             unknown_variable: Severity::Error,
+            out_of_scope_flag: Severity::Error,
             deprecated: Severity::Warning,
         }
     }
@@ -68,6 +71,7 @@ impl LintPolicy {
         Self {
             unknown_flag: Severity::Warning,
             unknown_variable: Severity::Warning,
+            out_of_scope_flag: Severity::Warning,
             deprecated: Severity::Warning,
         }
     }
@@ -86,6 +90,14 @@ impl LintPolicy {
         self
     }
 
+    /// How seriously to take a flag that is declared, but for other subcommands than the one
+    /// running (for example `--dry-run`, which belongs to `create`, given to `delete`).
+    #[must_use]
+    pub const fn out_of_scope_flags(mut self, severity: Severity) -> Self {
+        self.out_of_scope_flag = severity;
+        self
+    }
+
     /// How seriously to take the use of a deprecated input.
     #[must_use]
     pub const fn deprecated(mut self, severity: Severity) -> Self {
@@ -98,6 +110,7 @@ impl LintPolicy {
         match finding {
             Finding::UnknownArg { .. } => self.unknown_flag,
             Finding::UnknownEnv { .. } => self.unknown_variable,
+            Finding::OutOfScope { .. } => self.out_of_scope_flag,
             Finding::Deprecated { .. } => self.deprecated,
             Finding::InvalidValue { .. }
             | Finding::UnknownToken { .. }
@@ -109,7 +122,12 @@ impl LintPolicy {
 }
 
 /// Something wrong with an invocation, relative to the declared contract.
+///
+/// This enum is `#[non_exhaustive]`: a new kind of finding can be added in a minor release, so a
+/// `match` on it needs a wildcard arm. Ask [`Finding::severity`] or a [`LintPolicy`] how serious
+/// one is instead of matching on its kind.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Finding {
     /// A flag was given that no input declares.
     UnknownArg {
@@ -117,6 +135,19 @@ pub enum Finding {
         arg: String,
         /// The declared flag it most likely meant.
         did_you_mean: Option<String>,
+    },
+    /// A flag was given that is declared, but only for other subcommands than the one running.
+    ///
+    /// Flags are parsed globally, so without this finding `delete --dry-run` would be accepted
+    /// and the flag silently ignored by `delete`, which is the worst place for a "preview" flag
+    /// to be ignored.
+    OutOfScope {
+        /// The flag by its declared name (`--dry-run`; the short spelling if it has no long one).
+        arg: String,
+        /// The subcommand that is running, if any.
+        command: Option<String>,
+        /// The subcommands the flag belongs to.
+        applies_to: Vec<String>,
     },
     /// A variable is set that no input declares, but which closely resembles one
     /// that exists.
@@ -194,6 +225,18 @@ impl std::fmt::Display for Finding {
             Finding::UnknownEnv { name, did_you_mean } => {
                 write!(f, "{name} is not declared; did you mean {did_you_mean}?")
             }
+            Finding::OutOfScope {
+                arg,
+                command,
+                applies_to,
+            } => match command {
+                Some(command) => write!(
+                    f,
+                    "{arg} does not apply to `{command}` (it applies to: {})",
+                    applies_to.join(", ")
+                ),
+                None => write!(f, "{arg} only applies to: {}", applies_to.join(", ")),
+            },
             Finding::MissingValue { arg } => write!(f, "{arg} needs a value"),
             Finding::UnexpectedValue { arg } => write!(f, "{arg} takes no value"),
             Finding::InvalidValue {
@@ -280,6 +323,30 @@ fn check_resolution(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
         // A declared default is the program's own choice; only supplied values
         // are judged.
         if value.source == Source::Default {
+            continue;
+        }
+
+        // A flag for other subcommands, given to this one. Flags are parsed globally, so it was
+        // accepted; it must not be silently ignored. Its value is not judged: the problem is
+        // that it is here at all.
+        let is_flag = r.arg.as_ref().is_some_and(|a| a.position.is_none());
+        let in_scope = r.subcommands.is_empty()
+            || active.is_some_and(|a| r.subcommands.iter().any(|s| s == a));
+        if is_flag && value.source == Source::Arg && !in_scope {
+            findings.push(Finding::OutOfScope {
+                arg: r
+                    .arg
+                    .as_ref()
+                    .and_then(|a| {
+                        a.long
+                            .as_ref()
+                            .map(|l| format!("--{l}"))
+                            .or_else(|| a.short.as_ref().map(|c| format!("-{c}")))
+                    })
+                    .unwrap_or_else(|| r.key.clone()),
+                command: active.map(str::to_string),
+                applies_to: r.subcommands.clone(),
+            });
             continue;
         }
 

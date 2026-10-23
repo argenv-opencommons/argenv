@@ -177,3 +177,35 @@ fn leniency_is_only_about_typos_a_bad_value_is_fatal_for_every_project() {
         "a value that cannot be parsed has no usable reading: {stderr}"
     );
 }
+
+// ── a flag for another subcommand ────────────────────────────────────────────────────────
+
+#[test]
+fn a_flag_that_belongs_to_another_subcommand_stops_the_program_by_default() {
+    // `--release` belongs to `build`. Given to `run` it used to be accepted and ignored: the
+    // user believed they were running a release build and were not.
+    let (ok, stdout, stderr) = run(&["run", "app", "--release"], &[]);
+    assert!(!ok, "must be fatal by default");
+    assert!(
+        stderr.contains("--release does not apply to `run`") && stderr.contains("build"),
+        "{stderr}"
+    );
+    assert!(stdout.is_empty(), "must not run the program: {stdout}");
+}
+
+#[test]
+fn a_project_can_choose_to_let_it_through_with_a_warning() {
+    let (ok, _, stderr) = run(&["run", "app", "--release"], &[("MOCK_LENIENT", "1")]);
+    assert!(ok, "a lenient project carries on");
+    assert!(
+        stderr.contains("warning") && stderr.contains("--release"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_shared_flag_is_not_out_of_scope_for_either_of_its_subcommands() {
+    // `--jobs` is declared for both build and run.
+    assert!(run(&["build", "app", "--jobs", "4"], &[]).0);
+    assert!(run(&["run", "app", "--jobs", "4"], &[]).0);
+}

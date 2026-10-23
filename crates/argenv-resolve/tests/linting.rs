@@ -22,6 +22,148 @@ fn a_satisfied_invocation_reports_nothing() {
     assert!(errors(&f).is_empty(), "{f:#?}");
 }
 
+// ---- a flag given to a subcommand it does not belong to ----------------------------------
+
+/// `--dry-run` belongs to `create`, `--force` to `delete`, `--json` to every command, and
+/// `--jobs` (a number) to `create`.
+fn scoped_flags() -> Vec<Record> {
+    let dry_run: Input<bool, &'static str> = Input {
+        key: "dry_run",
+        ty: Type::Bool,
+        default: Some(false),
+        subcommands: &["create"],
+        arg: Some(Arg::long("dry-run")),
+        ..Input::EMPTY
+    };
+    let force: Input<bool, &'static str> = Input {
+        key: "force",
+        ty: Type::Bool,
+        default: Some(false),
+        subcommands: &["delete"],
+        arg: Some(Arg::pair("force", 'f')),
+        ..Input::EMPTY
+    };
+    let json: Input<bool, &'static str> = Input {
+        key: "json",
+        ty: Type::Bool,
+        default: Some(false),
+        arg: Some(Arg::long("json")),
+        ..Input::EMPTY
+    };
+    let jobs: Input<u64, &'static str> = Input {
+        key: "jobs",
+        ty: Type::Uint,
+        subcommands: &["create"],
+        arg: Some(Arg::long("jobs")),
+        ..Input::EMPTY
+    };
+    vec![
+        dry_run.to_record(),
+        force.to_record(),
+        json.to_record(),
+        jobs.to_record(),
+    ]
+}
+
+fn check_flags(argv: &[&str]) -> Vec<Finding> {
+    let a = args(argv);
+    let e = env(&[]);
+    let model = scoped_flags();
+    let resolution = Invocation { args: &a, env: &e }.resolve(&model);
+    lint(&model, &resolution)
+}
+
+fn out_of_scope(f: &[Finding]) -> Vec<&Finding> {
+    f.iter()
+        .filter(|f| matches!(f, Finding::OutOfScope { .. }))
+        .collect()
+}
+
+#[test]
+fn a_flag_of_another_subcommand_is_reported_with_where_it_belongs() {
+    let f = check_flags(&["delete", "--dry-run"]);
+    assert_eq!(
+        out_of_scope(&f),
+        [&Finding::OutOfScope {
+            arg: "--dry-run".into(),
+            command: Some("delete".into()),
+            applies_to: vec!["create".into()],
+        }]
+    );
+    assert_eq!(
+        f[0].to_string(),
+        "--dry-run does not apply to `delete` (it applies to: create)"
+    );
+}
+
+#[test]
+fn a_flag_is_fine_for_its_own_subcommand_and_a_shared_flag_is_fine_anywhere() {
+    assert!(out_of_scope(&check_flags(&["create", "--dry-run"])).is_empty());
+    assert!(out_of_scope(&check_flags(&["delete", "-f"])).is_empty());
+    for command in ["create", "delete", "list"] {
+        assert!(
+            out_of_scope(&check_flags(&[command, "--json"])).is_empty(),
+            "--json is declared for every command, so it fits `{command}`"
+        );
+    }
+}
+
+#[test]
+fn a_flag_that_belongs_to_a_subcommand_is_out_of_place_when_none_runs() {
+    let f = check_flags(&["--dry-run"]);
+    let findings = out_of_scope(&f);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].to_string(), "--dry-run only applies to: create");
+}
+
+#[test]
+fn the_value_of_an_out_of_place_flag_is_not_judged_too() {
+    // One problem, reported once: the flag is in the wrong place. Not also "jobs=many is not a
+    // number", which would be noise about a flag that was never going to be read.
+    let f = check_flags(&["delete", "--jobs", "many"]);
+    assert_eq!(f.len(), 1, "{f:?}");
+    assert!(matches!(&f[0], Finding::OutOfScope { arg, .. } if arg == "--jobs"));
+}
+
+#[test]
+fn the_same_flag_in_scope_is_judged_normally() {
+    let f = check_flags(&["create", "--jobs", "many"]);
+    assert!(out_of_scope(&f).is_empty());
+    assert!(f
+        .iter()
+        .any(|f| matches!(f, Finding::InvalidValue { key, .. } if key == "jobs")));
+}
+
+#[test]
+fn an_out_of_place_flag_is_an_error_by_default_and_the_project_decides() {
+    let f = check_flags(&["delete", "--dry-run"]);
+    let finding = &f[0];
+    assert_eq!(finding.severity(), Severity::Error);
+    assert_eq!(LintPolicy::default().severity(finding), Severity::Error);
+    assert_eq!(LintPolicy::lenient().severity(finding), Severity::Warning);
+    let only_this = LintPolicy::default().out_of_scope_flags(Severity::Warning);
+    assert_eq!(only_this.severity(finding), Severity::Warning);
+    // ...and relaxing it leaves the other kinds of typo strict.
+    let typo = check(&["--log-levl", "warn"], &[]);
+    let flag_typo = typo
+        .iter()
+        .find(|f| matches!(f, Finding::UnknownArg { .. }))
+        .unwrap();
+    assert_eq!(only_this.severity(flag_typo), Severity::Error);
+}
+
+#[test]
+fn findings_are_non_exhaustive_so_a_wildcard_arm_is_required_of_callers() {
+    // This match is written the way every caller must write it. If `Finding` stops being
+    // `#[non_exhaustive]` the arm below is unreachable and the compiler says so.
+    let f = check_flags(&["delete", "--dry-run"]);
+    let label = match &f[0] {
+        Finding::OutOfScope { .. } => "scope",
+        _ => "something else",
+    };
+    assert_eq!(label, "scope");
+}
+
 // ---- how seriously each finding is taken: the policy ------------------------------------
 
 fn typo_findings() -> Vec<Finding> {

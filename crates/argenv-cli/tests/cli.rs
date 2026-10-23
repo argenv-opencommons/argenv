@@ -360,6 +360,86 @@ fn lint_fails_on_a_flag_given_to_a_subcommand_it_does_not_belong_to() {
 }
 
 #[test]
+fn completions_are_generated_for_every_shell_from_a_published_contract() {
+    let p = write_temp("completions", &scoped_document());
+    let path = p.to_str().unwrap();
+    for (shell, needle) in [
+        ("bash", "complete -F _app app"),
+        ("zsh", "#compdef app"),
+        ("fish", "complete -c app"),
+        ("nushell", "export extern \"app create\""),
+    ] {
+        let out = run(&["completions", shell, path]);
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success(),
+            "{shell}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(text.contains(needle), "{shell} lacks `{needle}`:\n{text}");
+        assert!(
+            text.contains("dry-run") && text.contains("force"),
+            "{shell}"
+        );
+    }
+    // the commands come from the contract's own scoping
+    let bash = run(&["completions", "bash", path]);
+    let text = String::from_utf8_lossy(&bash.stdout);
+    assert!(text.contains("create|delete)"), "{text}");
+}
+
+#[test]
+fn completions_can_be_named_and_a_bad_request_is_refused_clearly() {
+    let p = write_temp("completions-name", &scoped_document());
+    let path = p.to_str().unwrap();
+    let named = run(&["completions", "fish", path, "--program", "my-tool"]);
+    assert!(String::from_utf8_lossy(&named.stdout).contains("complete -c my-tool"));
+
+    assert_eq!(
+        run(&["completions", "powershell", path]).status.code(),
+        Some(2)
+    );
+    assert_eq!(run(&["completions", "bash"]).status.code(), Some(2));
+    assert_eq!(
+        run(&["completions", "bash", path, "--nope"]).status.code(),
+        Some(2)
+    );
+    // a name that is not a plain name is never written into shell code
+    let hostile = run(&["completions", "bash", path, "--program", "a;rm -rf ~"]);
+    assert!(!hostile.status.success());
+    assert!(
+        hostile.stdout.is_empty(),
+        "nothing is emitted for a refused name"
+    );
+    assert!(String::from_utf8_lossy(&hostile.stderr).contains("not a plain name"));
+}
+
+#[test]
+fn man_renders_a_page_from_a_published_contract() {
+    let p = write_temp("man", &scoped_document());
+    let out = run(&[
+        "man",
+        p.to_str().unwrap(),
+        "--date",
+        "2026-10-23",
+        "--about",
+        "does things",
+    ]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        text.starts_with(".TH APP 1 \"2026-10-23\" \"app test\""),
+        "{text}"
+    );
+    assert!(text.contains("app \\- does things"), "{text}");
+    assert!(text.contains("\\fB\\-\\-dry\\-run\\fR"), "{text}");
+}
+
+#[test]
 fn lint_ignores_the_rest_of_the_environment() {
     let p = write_temp("lint-noise", &valid_document());
     let out = run_with_env(

@@ -131,8 +131,12 @@ The design is a middle ground on purpose:
 
 ```toml
 [dependencies]
-argenv = "0.1"
+argenv = "0.2"          # the model: declare inputs, emit the contract
+argenv-resolve = "0.2"  # reading: resolve an invocation against it, and lint it (re-exports argenv)
 ```
+
+A program that only publishes its contract needs `argenv`; one that also reads its own
+arguments and environment through it, or checks an invocation, uses `argenv-resolve`.
 
 ## Use
 
@@ -199,8 +203,9 @@ No step requires the previous one to be complete.
 ## Project layout
 
 ```
-crates/argenv/       the model (published to crates.io)
-crates/argenv-cli/   schema emission, document validation, invocation checking
+crates/argenv/          the model (published to crates.io)
+crates/argenv-resolve/  reading and linting an invocation against the model (published)
+crates/argenv-cli/      schema emission, document validation, invocation checking
 schema/              the generated JSON Schema contract
 api/                 static GET endpoints (schema + examples)
 ARCHITECTURE.md      contract propagation and governance
@@ -208,7 +213,7 @@ ARCHITECTURE.md      contract propagation and governance
 
 ## Status
 
-`0.1` — the model, the schema and the tooling are complete and tested.
+`0.2` — the model, the schema and the tooling are complete and tested.
 
 The contract format is versioned (`contract_version`) and evolves **additively**: new
 fields are optional, records accept properties they do not recognise, and readers ignore

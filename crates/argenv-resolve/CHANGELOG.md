@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to argenv are documented here.
+## [0.3.1]
+
+
+### Features
+- **resolve:** Derive shell completions and a man page from a contract ([#32](https://github.com/argenv-opencommons/argenv/pull/32)) ([b5715fd])
+
+
+
 ## [0.3.0]
 
 

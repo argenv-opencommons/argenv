@@ -66,7 +66,8 @@ pub enum Finding {
         /// The tokens that are accepted.
         allowed: Vec<String>,
     },
-    /// A required input was not supplied and has no default.
+    /// A required input was not supplied and has no default. An input scoped to
+    /// subcommands counts as required only when one of those subcommands is running.
     MissingRequired {
         /// The input's key.
         key: String,
@@ -171,9 +172,16 @@ pub fn lint(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
 
 fn check_resolution(model: &[Record], resolution: &Resolution) -> Vec<Finding> {
     let mut findings = Vec::new();
+    // The subcommand that is running: the first positional, as resolution itself reads it.
+    let active = resolution.positionals().first().map(String::as_str);
     for r in model {
         let Some(value) = resolution.values().get(&r.key) else {
-            if r.required {
+            // An input scoped to subcommands is only demanded when one of them runs.
+            // Otherwise `required: true` on `delete`'s argument would make every other
+            // subcommand fail its lint.
+            let in_scope = r.subcommands.is_empty()
+                || active.is_some_and(|a| r.subcommands.iter().any(|s| s == a));
+            if r.required && in_scope {
                 let mut via = r.arg_labels();
                 via.extend(r.env_names().iter().map(|n| n.to_string()));
                 findings.push(Finding::MissingRequired {

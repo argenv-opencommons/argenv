@@ -313,6 +313,52 @@ fn lint_lenient_is_not_lenient_about_values() {
     );
 }
 
+/// A contract where `--dry-run` belongs to `create` and `--force` to `delete`.
+fn scoped_document() -> serde_json::Value {
+    serde_json::json!({
+        "contract_version": 1,
+        "source": "app@test",
+        "precedence": ["arg", "env", "default"],
+        "inputs": [
+            { "key": "dry_run", "type": "bool", "stability": "stable", "subcommands": ["create"],
+              "arg": { "long": "dry-run", "arity": 0, "negatable": false, "repeatable": false } },
+            { "key": "force", "type": "bool", "stability": "stable", "subcommands": ["delete"],
+              "arg": { "long": "force", "arity": 0, "negatable": false, "repeatable": false } }
+        ]
+    })
+}
+
+#[test]
+fn lint_fails_on_a_flag_given_to_a_subcommand_it_does_not_belong_to() {
+    let p = write_temp("lint-scope", &scoped_document());
+    let path = p.to_str().unwrap();
+
+    let wrong = run_with_env(&["lint", path, "--", "delete", "--dry-run"], &[]);
+    let stderr = String::from_utf8_lossy(&wrong.stderr);
+    assert!(
+        !wrong.status.success(),
+        "by default it is an error: {stderr}"
+    );
+    assert!(
+        stderr.contains("--dry-run does not apply to `delete` (it applies to: create)"),
+        "{stderr}"
+    );
+
+    let right = run_with_env(&["lint", path, "--", "create", "--dry-run"], &[]);
+    assert!(
+        right.status.success(),
+        "{}",
+        String::from_utf8_lossy(&right.stderr)
+    );
+
+    let lenient = run_with_env(
+        &["lint", "--lenient", path, "--", "delete", "--dry-run"],
+        &[],
+    );
+    assert!(lenient.status.success(), "a lenient project carries on");
+    assert!(String::from_utf8_lossy(&lenient.stderr).contains("warning:"));
+}
+
 #[test]
 fn lint_ignores_the_rest_of_the_environment() {
     let p = write_temp("lint-noise", &valid_document());

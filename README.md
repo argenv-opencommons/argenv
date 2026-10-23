@@ -44,8 +44,9 @@ in any language — including ones that never adopted this crate.
 
 ### How strict, and who decides
 
-A misspelled flag or variable is an **error by default**: the intent is clear and wrong, and
-carrying on would run the program without the setting the user asked for. A program that has a
+A misspelled flag or variable is an **error by default**, and so is a flag given to a subcommand it
+does not belong to (`delete --dry-run`, where `--dry-run` is `create`'s): the intent is clear and
+wrong, and carrying on would run the program without the setting the user asked for. A program that has a
 reason to be more forgiving (a wrapper that forwards flags it does not declare, a tool that runs
 in environments it does not control) says so once, in its own code:
 
@@ -55,7 +56,7 @@ use argenv_resolve::{LintPolicy, OnProblems, Severity};
 // the previous behaviour: typos are surfaced, never fatal
 let resolved = Contract::parse_and_lint_with(OnProblems::FailOnError, &LintPolicy::lenient());
 
-// or one kind at a time
+// or one kind at a time: unknown_flags, unknown_variables, out_of_scope_flags, deprecated
 let policy = LintPolicy::default().unknown_flags(Severity::Warning);
 ```
 

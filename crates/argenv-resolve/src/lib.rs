@@ -176,6 +176,7 @@ macro_rules! contract {
 }
 
 mod ext;
+pub mod generate;
 mod invocation;
 mod lint;
 mod problems;

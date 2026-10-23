@@ -63,6 +63,31 @@ let policy = LintPolicy::default().unknown_flags(Severity::Warning);
 On the command line, `argenv lint --lenient PATH` does the same. A bad *value* (out of its domain,
 unparseable, missing) is an error under every policy: there is no usable reading of it.
 
+### Everything else, derived
+
+Because the surface is written down once, what a program ships *about* it can be derived instead
+of maintained by hand and forgotten. From a contract (the Rust declaration, or a published
+document from a program in any language):
+
+```console
+$ argenv completions bash  myapp.argenv.json > /usr/share/bash-completion/completions/myapp
+$ argenv completions zsh     myapp.argenv.json > /usr/share/zsh/site-functions/_myapp
+$ argenv completions fish    myapp.argenv.json > /usr/share/fish/vendor_completions.d/myapp.fish
+$ argenv completions nushell myapp.argenv.json > /usr/share/nushell/vendor/autoload/myapp.nu
+$ argenv man myapp.argenv.json --date 2026-10-23 | gzip -9n > /usr/share/man/man1/myapp.1.gz
+```
+
+A flag scoped to a subcommand is offered only after that subcommand; enumerated values are
+completed; path-valued inputs complete file names; `--flag` and `--no-flag` both appear.
+Programs that link the library call `argenv_resolve::generate` themselves and can add what a
+document cannot carry (a one-line summary per subcommand, exit statuses, see-also pages).
+
+The output is shell code, so the contract is treated as **untrusted**: names and values that are
+not plain tokens are left out (or, for the program and subcommand names, refused), and free text
+is quoted for the shell it lands in. A summary such as `'; rm -rf ~ #` is displayed, never
+executed. The generators are tested in real bash, zsh (through a pseudo-terminal, pressing Tab),
+fish and nushell, and the man page through groff.
+
 ---
 
 ## The problem

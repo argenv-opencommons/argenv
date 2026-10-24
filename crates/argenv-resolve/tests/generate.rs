@@ -85,6 +85,19 @@ fn records() -> Vec<Record> {
         summary: "Show what would happen.",
         ..Input::EMPTY
     };
+    let mode: Input<String, &'static str> = Input {
+        key: "mode",
+        ty: Type::Enum,
+        allowed: &["fast", "slow"],
+        subcommands: &["create"],
+        arg: Some(Arg {
+            value_name: "MODE",
+            ..Arg::long("mode")
+        }),
+        group: "create",
+        summary: "How to snapshot.",
+        ..Input::EMPTY
+    };
     let description: Input<String, &'static str> = Input {
         key: "description",
         ty: Type::String,
@@ -130,6 +143,7 @@ fn records() -> Vec<Record> {
         color.to_record(),
         only.to_record(),
         dry_run.to_record(),
+        mode.to_record(),
         description.to_record(),
         shell.to_record(),
         target.to_record(),
@@ -490,6 +504,25 @@ fn bash_completes_commands_flags_values_and_files_the_way_a_user_would_type_them
     assert!(
         complete(&["app", "create", "--only", ""]).is_empty(),
         "a free-text value: nothing to suggest"
+    );
+
+    // The values of a flag that belongs to `create` are completed after `create`, and only there.
+    let mut modes = complete(&["app", "create", "--mode", ""]);
+    modes.sort();
+    assert_eq!(modes, ["fast", "slow"]);
+    let before_a_command = complete(&["app", "--mode", ""]);
+    assert!(
+        !before_a_command.iter().any(|w| w == "fast" || w == "slow"),
+        "no command yet: --mode is not in play, so its values are not offered: {before_a_command:?}"
+    );
+    assert!(
+        complete(&["app", "list", "--mode", ""]).is_empty(),
+        "list has no --mode"
+    );
+    assert_eq!(
+        complete(&["app", "create", "--mode", "=", "s"]),
+        ["slow"],
+        "the --flag=value form too"
     );
 
     let mut shells = complete(&["app", "completions", ""]);

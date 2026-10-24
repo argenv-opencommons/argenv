@@ -41,7 +41,23 @@ pub fn bash(program: &Program<'_>, records: &[Record]) -> Result<String, Generat
     let mut value_arms = String::new();
     let mut value_flags: Vec<String> = Vec::new();
     for flag in flags.iter().filter(|f| f.takes_value) {
-        let pattern = flag.spellings().join("|");
+        // Keyed by "<subcommand>:<flag>", so the values of a flag that belongs to `create` are
+        // completed after `create` and nowhere else, which is what the other shells do too.
+        let pattern = flag
+            .spellings()
+            .iter()
+            .flat_map(|spelling| {
+                if flag.scope.is_empty() {
+                    vec![format!("*:{spelling}")]
+                } else {
+                    flag.scope
+                        .iter()
+                        .map(|command| format!("{command}:{spelling}"))
+                        .collect()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("|");
         value_flags.extend(flag.spellings());
         if !flag.values.is_empty() {
             value_arms.push_str(&format!(
@@ -57,7 +73,9 @@ pub fn bash(program: &Program<'_>, records: &[Record]) -> Result<String, Generat
         }
     }
     if !value_arms.is_empty() {
-        out.push_str(&format!("    case \"$prev\" in\n{value_arms}    esac\n"));
+        out.push_str(&format!(
+            "    case \"$cmd:$prev\" in\n{value_arms}    esac\n"
+        ));
     }
 
     // The flags on offer, per subcommand.

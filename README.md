@@ -175,10 +175,9 @@ The design is a middle ground on purpose:
 
 ## Install
 
-```toml
-[dependencies]
-argenv = "0.2"          # the model: declare inputs, emit the contract
-argenv-resolve = "0.2"  # reading: resolve an invocation against it, and lint it (re-exports argenv)
+```sh
+cargo add argenv           # the model: declare inputs, emit the contract
+cargo add argenv-resolve   # reading: resolve an invocation against it, lint it, derive completions (re-exports argenv)
 ```
 
 A program that only publishes its contract needs `argenv`; one that also reads its own
@@ -223,7 +222,7 @@ argenv lint   dist/myapp.argenv.json -- --hdr # does this invocation satisfy it?
 argenv usage  dist/myapp.argenv.json          # the help text it implies
 ```
 
-See [`crates/argenv/examples/consumer.rs`](crates/argenv/examples/consumer.rs) for a
+See [`crates/argenv-resolve/examples/consumer.rs`](crates/argenv-resolve/examples/consumer.rs) for a
 complete model covering both bindings, custom domain types, negation, repetition and
 deprecation.
 
@@ -233,7 +232,7 @@ once: the same setting through a flag or the variable, a typo caught with a sugg
 usage text generated from the declaration.
 
 The test suite doubles as the specification: every rule is one test, named as a sentence.
-[`tests/scenario.rs`](crates/argenv/tests/scenario.rs) walks the whole life of a contract —
+[`tests/scenario.rs`](crates/argenv-resolve/tests/scenario.rs) walks the whole life of a contract —
 declared, published, read back by an unrelated consumer, and used to catch a broken launch —
 and is the fastest way to see the shape of the project. `cargo test` runs all of it,
 including whether the schema committed here is still the one the model produces.

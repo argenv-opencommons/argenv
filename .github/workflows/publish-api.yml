@@ -1,5 +1,4 @@
 # Serves api/ as the contract GET API via GitHub Pages.
-# NEXT STEP: enable Pages (Settings -> Pages -> Source: GitHub Actions).
 name: Publish contract API
 
 on:

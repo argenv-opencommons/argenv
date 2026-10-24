@@ -45,12 +45,22 @@ jobs:
       # The generators emit shell code, so they are tested in the real shells. nushell is not
       # packaged for Ubuntu: it is downloaded at a pinned version.
       - name: Install the shells and groff for the generator tests
+        # A download that stalls must fail the step, not hold the job for hours.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y fish zsh groff
+          # Only what the tests run. `groff` alone drags in ImageMagick, Ghostscript and fonts
+          # through its recommends (40 packages), and a stalled mirror download of one of those
+          # held a job for ten minutes; `groff-base` is the formatter itself.
+          apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30"
+          $apt update
+          $apt install -y --no-install-recommends fish zsh groff-base
           nu_version=0.116.1
-          curl -fsSL "https://github.com/nushell/nushell/releases/download/${nu_version}/nu-${nu_version}-x86_64-unknown-linux-musl.tar.gz" | tar xz -C "$RUNNER_TEMP"
-          sudo install "$RUNNER_TEMP/nu-${nu_version}-x86_64-unknown-linux-musl/nu" /usr/local/bin/nu
+          nu="nu-${nu_version}-x86_64-unknown-linux-musl"
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --max-time 180 \
+            -o "$RUNNER_TEMP/nu.tar.gz" \
+            "https://github.com/nushell/nushell/releases/download/${nu_version}/${nu}.tar.gz"
+          tar xzf "$RUNNER_TEMP/nu.tar.gz" -C "$RUNNER_TEMP"
+          sudo install "$RUNNER_TEMP/${nu}/nu" /usr/local/bin/nu
           nu --version
 
       - name: Test

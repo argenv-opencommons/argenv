@@ -48,8 +48,12 @@ jobs:
         # A download that stalls must fail the step, not hold the job for hours.
         timeout-minutes: 10
         run: |
-          sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y fish zsh groff
+          # Only what the tests run. `groff` alone drags in ImageMagick, Ghostscript and fonts
+          # through its recommends (40 packages), and a stalled mirror download of one of those
+          # held a job for ten minutes; `groff-base` is the formatter itself.
+          apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30"
+          $apt update
+          $apt install -y --no-install-recommends fish zsh groff-base
           nu_version=0.116.1
           nu="nu-${nu_version}-x86_64-unknown-linux-musl"
           curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --max-time 180 \

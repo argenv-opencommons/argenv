@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to argenv are documented here.
+## [0.3.2]
+
+
+### Bug Fixes
+- **resolve:** Bash completes a flag's values only where the flag applies ([#34](https://github.com/argenv-opencommons/argenv/pull/34)) ([de17bad])
+
+
+
 ## [0.3.1]
 
 

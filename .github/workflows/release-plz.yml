@@ -24,10 +24,5 @@ jobs:
       - uses: MarcoIeni/release-plz-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NEXT STEP (same as the workflow this replaces): add the
-          # CARGO_REGISTRY_TOKEN repo secret. Until then, this step still
-          # correctly maintains the release PR (changelog + version bump) on
-          # every push to main — only the actual `cargo publish` at the end
-          # of a cut release needs the token, and that only runs once a
-          # release PR has been merged, which won't happen by itself.
+          # Merging a release PR publishes to crates.io with this repository secret.
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

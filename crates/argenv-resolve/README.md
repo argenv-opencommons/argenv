@@ -25,3 +25,8 @@ fn main() {
     let host = Contract::HOST.get_from(&resolved);
 }
 ```
+
+A misspelled flag or variable, and a flag given to the wrong subcommand, are **errors by
+default**; a program that wants to be more forgiving passes its own `LintPolicy`. The same
+declaration also derives shell completions and a man page (`argenv_resolve::generate`). Both
+are explained in the [repository README](https://github.com/argenv-opencommons/argenv#readme).

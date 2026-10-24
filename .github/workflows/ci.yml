@@ -23,6 +23,9 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
+      - name: Documentation links point at files that exist
+        run: python3 dev/check-links.py
+
       # Each published crate carries its own copy of the license texts (cargo packages a
       # crate from its own directory, so a file at the repository root does not travel).
       - name: License files are identical in every published crate

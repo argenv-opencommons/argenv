@@ -80,7 +80,25 @@ $ argenv man myapp.argenv.json --date 2026-10-23 | gzip -9n > /usr/share/man/man
 A flag scoped to a subcommand is offered only after that subcommand; enumerated values are
 completed; path-valued inputs complete file names; `--flag` and `--no-flag` both appear.
 Programs that link the library call `argenv_resolve::generate` themselves and can add what a
-document cannot carry (a one-line summary per subcommand, exit statuses, see-also pages).
+document cannot carry (a one-line summary per subcommand, exit statuses, see-also pages). The
+whole adapter is a description of the program and a pass-through of its records, so a
+`completions SHELL` and a `man` subcommand are a few lines, and nothing is written by hand:
+
+```rust,ignore
+use argenv_resolve::generate::{self, Command, Program, Shell};
+
+let program = Program {
+    name: "myapp",
+    version: env!("CARGO_PKG_VERSION"),
+    about: "does things",
+    commands: &[Command { name: "run", summary: "Run it" }],
+    exit_status: &[("0", "done"), ("2", "the invocation is wrong")],
+    see_also: &[],
+    date: "2026-10-23", // a parameter, not a clock reading: output is reproducible
+};
+print!("{}", generate::completions(Shell::Bash, &program, &Contract::records())?);
+print!("{}", generate::man_page(&program, &Contract::records())?);
+```
 
 The output is shell code, so the contract is treated as **untrusted**: names and values that are
 not plain tokens are left out (or, for the program and subcommand names, refused), and free text
@@ -263,16 +281,17 @@ ARCHITECTURE.md      contract propagation and governance
 
 ## Status
 
-`0.2` — the model, the schema and the tooling are complete and tested.
+The model, the schema, the tooling, and the completions and man page derived from a contract are
+complete and tested.
 
 The contract format is versioned (`contract_version`) and evolves **additively**: new
 fields are optional, records accept properties they do not recognise, and readers ignore
 them. A consumer pinned to this version keeps working against documents produced by a later
 one — enforced by tests, not promised in prose.
 
-Planned, and deliberately not built yet: a `cfg` binding for configuration-file paths,
-man-page and shell-completion generation from a contract, and generated model modules for
-other languages. All three consume `Record` and need no change to the model.
+Planned, and deliberately not built yet: a `cfg` binding for configuration-file paths, and
+generated model modules for other languages. Both consume `Record` and need no change to the
+model.
 
 ## License
 

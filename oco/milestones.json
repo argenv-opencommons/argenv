@@ -1,0 +1,4 @@
+{"id":"argenv-ecosystem","subject":"argenv","ord":4,"title":"In the ecosystem","horizon":"ongoing","readiness":9,"criteria":"backlog:argenv-in-oco","why":"Its progress seen with the rest of the commons."}
+{"id":"argenv-in-use","subject":"argenv","ord":2,"title":"Published and used","horizon":"working","readiness":8,"criteria":"backlog:argenv-published backlog:argenv-used","why":"Real programs run on it."}
+{"id":"argenv-one-contract","subject":"argenv","ord":1,"title":"One declaration, one contract","horizon":"working","readiness":7,"criteria":"backlog:argenv-contract backlog:argenv-resolve","why":"The invocation surface declared once, typed, machine-readable."}
+{"id":"argenv-questions","subject":"argenv","ord":3,"title":"The open questions settled","horizon":"perfection","readiness":9,"criteria":"backlog:argenv-open-lists backlog:argenv-schemars","why":"Open lists, and the schema's shape."}

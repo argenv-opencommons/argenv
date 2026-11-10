@@ -1,0 +1,7 @@
+{"id":"argenv-contract","title":"One declaration, one contract","status":"done","note":"An Input is at once the contract entry, the typed accessor and a compile-checked symbol; the published contract cannot drift from the code.","opened":"2026-11-10"}
+{"id":"argenv-in-oco","title":"In the Open Commons Observatory's ecosystem","status":"done","note":"Marked; its activity, releases and CI gathered by ocoeco; its path kept here.","opened":"2026-11-10"}
+{"id":"argenv-open-lists","title":"Open lists","status":"open","note":"A list whose members are only known at runtime (issue #25).","opened":"2026-11-10"}
+{"id":"argenv-published","title":"Published","status":"done","note":"On crates.io (0.3.2) with docs.rs and the live contract API.","opened":"2026-11-10"}
+{"id":"argenv-resolve","title":"argv and env resolved as one setting with two doors","status":"done","note":"argenv-resolve: a flag and its variable share a type, a domain, a default; a misspelled flag or variable is an error by default.","opened":"2026-11-10"}
+{"id":"argenv-schemars","title":"The published schema's shape, with schemars 1.x","status":"open","note":"The migration is a decision about the schema's shape, not a version bump (issue #28).","opened":"2026-11-10"}
+{"id":"argenv-used","title":"Used in real programs","status":"done","note":"lab-agent and snapall declare their invocation with it.","opened":"2026-11-10"}

@@ -1,6 +1,15 @@
 # Changelog
 
 All notable changes to argenv are documented here.
+## [0.3.3]
+
+
+### Documentation
+- One README for the crates, no version numbers to rot, and a link check ([#36](https://github.com/argenv-opencommons/argenv/pull/36)) ([36d41f3])
+- Completions and the man page are built; the Status section still said planned ([#39](https://github.com/argenv-opencommons/argenv/pull/39)) ([8be5a47])
+
+
+
 ## [0.3.2]
 
 

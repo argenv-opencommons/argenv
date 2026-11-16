@@ -8,3 +8,4 @@
 {"id":"g-20261113-200341","at":"2026-11-13T20:03:41Z","by":"claude","kind":"docs","summary":"the held step says it waits, not that it is next","advances":"backlog:argenv-open-lists"}
 {"id":"g-20261114-172532","at":"2026-11-14T17:25:32Z","by":"claude","kind":"docs","summary":"the trial open lists waited on has run: what it showed","where":"backlog:argenv-open-lists"}
 {"id":"g-20261116-144004","at":"2026-11-16T14:40:04Z","by":"claude","kind":"chore","summary":"a mark: the latest runs are observed, as runs - no longer gathered here"}
+{"id":"g-20261116-154710","at":"2026-11-16T15:47:10Z","by":"claude","kind":"chore","summary":"a mark: what the gatherer writes is said where it writes it - no longer named here"}

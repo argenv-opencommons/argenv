@@ -9,3 +9,4 @@
 {"id":"g-20261114-172532","at":"2026-11-14T17:25:32Z","by":"claude","kind":"docs","summary":"the trial open lists waited on has run: what it showed","where":"backlog:argenv-open-lists"}
 {"id":"g-20261116-144004","at":"2026-11-16T14:40:04Z","by":"claude","kind":"chore","summary":"a mark: the latest runs are observed, as runs - no longer gathered here"}
 {"id":"g-20261116-154710","at":"2026-11-16T15:47:10Z","by":"claude","kind":"chore","summary":"a mark: what the gatherer writes is said where it writes it - no longer named here"}
+{"id":"g-20261117-023849","at":"2026-11-17T02:38:49Z","by":"conveyor-tad","kind":"feat","summary":"completions can ask the program for a positional's values"}

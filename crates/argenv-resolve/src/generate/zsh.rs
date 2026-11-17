@@ -1,6 +1,8 @@
 //! zsh completion.
 
-use super::{commands, identifier, model, Flag, GenerateError, Model, Positional, Program};
+use super::{
+    asked_words, commands, identifier, model, Flag, GenerateError, Model, Positional, Program,
+};
 use crate::Record;
 
 /// Single-quote text for zsh (inside single quotes only `'` is special).
@@ -61,8 +63,19 @@ fn flag_spec(flag: &Flag) -> Vec<String> {
     specs
 }
 
-fn positional_spec(index: usize, positional: &Positional) -> String {
-    let action = if !positional.values.is_empty() {
+/// One `_arguments` spec for a positional. `asked` is the command line that lists its values, when
+/// the program lists them itself; it takes precedence over the enumerated values.
+fn positional_spec(index: usize, positional: &Positional, asked: Option<&[&str]>) -> String {
+    let action = if let Some(words) = asked {
+        // Each word double-quoted (a plain token has nothing a double quote would expand, and
+        // the quotes stop a leading `=` or `~` from meaning anything), every line one candidate.
+        let line = words
+            .iter()
+            .map(|w| format!("\"{w}\""))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("{{compadd -- ${{(f)\"$({line} 2>/dev/null)\"}}}}")
+    } else if !positional.values.is_empty() {
         format!("({})", positional.values.join(" "))
     } else if positional.path {
         "_files".to_string()
@@ -127,7 +140,11 @@ pub fn zsh(program: &Program<'_>, records: &[Record]) -> Result<String, Generate
             for positional in positionals.iter().filter(|p| p.available_for(command.name)) {
                 out.push_str(&format!(
                     "            {} \\\n",
-                    positional_spec(positional.index, positional)
+                    positional_spec(
+                        positional.index,
+                        positional,
+                        asked_words(program, command.name, positional.index).as_deref(),
+                    )
                 ));
             }
             out.push_str("            && ret=0\n          ;;\n");

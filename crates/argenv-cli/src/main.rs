@@ -308,6 +308,7 @@ fn with_program<T>(g: &Generation, f: impl FnOnce(&Program<'_>, &[Record]) -> T)
         exit_status: &[],
         see_also: &[],
         date: &g.date,
+        asked: &[],
     };
     f(&program, &g.records)
 }

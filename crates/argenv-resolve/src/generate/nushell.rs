@@ -1,6 +1,8 @@
 //! nushell completion: `extern` definitions with custom completers.
 
-use super::{commands, identifier, model, Flag, GenerateError, Model, Positional, Program};
+use super::{
+    asked_words, commands, identifier, model, Flag, GenerateError, Model, Positional, Program,
+};
 use crate::Record;
 
 /// A nushell double-quoted string.
@@ -53,7 +55,7 @@ fn flag_line(program: &str, flag: &Flag) -> Vec<String> {
     lines
 }
 
-fn positional_line(program: &str, command: &str, positional: &Positional) -> String {
+fn positional_line(program: &str, command: &str, positional: &Positional, asked: bool) -> String {
     let completer = format!("nu-complete {program} {command} {}", positional.index);
     let name = identifier(&positional.name).to_lowercase();
     let optional = if positional.required { "" } else { "?" };
@@ -64,7 +66,11 @@ fn positional_line(program: &str, command: &str, positional: &Positional) -> Str
     };
     format!(
         "    {name}{optional}: {}{comment}",
-        type_for(positional.path, !positional.values.is_empty(), &completer)
+        type_for(
+            positional.path,
+            asked || !positional.values.is_empty(),
+            &completer
+        )
     )
 }
 
@@ -80,17 +86,20 @@ pub fn nushell(program: &Program<'_>, records: &[Record]) -> Result<String, Gene
 
     // Custom completers for enumerated flags and positionals, each defined once.
     let mut defined: Vec<String> = Vec::new();
-    let mut define = |out: &mut String, completer: String, values: &[String]| {
+    let mut define = |out: &mut String, completer: String, body: String| {
         if defined.contains(&completer) {
             return;
         }
-        let list = values
+        out.push_str(&format!("  def {} [] {{ {body} }}\n", quote(&completer)));
+        defined.push(completer);
+    };
+    let list = |values: &[String]| {
+        let items = values
             .iter()
             .map(|v| quote(v))
             .collect::<Vec<_>>()
             .join(" ");
-        out.push_str(&format!("  def {} [] {{ [{list}] }}\n", quote(&completer)));
-        defined.push(completer);
+        format!("[{items}]")
     };
     for flag in flags
         .iter()
@@ -101,14 +110,30 @@ pub fn nushell(program: &Program<'_>, records: &[Record]) -> Result<String, Gene
             .as_deref()
             .or(flag.short.as_deref())
             .unwrap_or("value");
-        define(&mut out, format!("nu-complete {name} {key}"), &flag.values);
+        define(
+            &mut out,
+            format!("nu-complete {name} {key}"),
+            list(&flag.values),
+        );
     }
-    for positional in positionals.iter().filter(|p| !p.values.is_empty()) {
+    for positional in &positionals {
         for command in commands.iter().filter(|c| positional.available_for(c.name)) {
+            let body = if let Some(words) = asked_words(program, command.name, positional.index) {
+                // Run when Tab is pressed: each line it prints is a candidate; its error output
+                // is captured and dropped, and a failure (or no such program) offers nothing.
+                let line = words.iter().map(|w| quote(w)).collect::<Vec<_>>().join(" ");
+                format!(
+                    "try {{ let r = (run-external {line} | complete); if $r.exit_code == 0 {{ $r.stdout | lines }} else {{ [] }} }} catch {{ [] }}"
+                )
+            } else if !positional.values.is_empty() {
+                list(&positional.values)
+            } else {
+                continue;
+            };
             define(
                 &mut out,
                 format!("nu-complete {name} {} {}", command.name, positional.index),
-                &positional.values,
+                body,
             );
         }
     }
@@ -136,7 +161,12 @@ pub fn nushell(program: &Program<'_>, records: &[Record]) -> Result<String, Gene
         for positional in positionals.iter().filter(|p| p.available_for(command.name)) {
             out.push_str(&format!(
                 "  {}\n",
-                positional_line(name, command.name, positional)
+                positional_line(
+                    name,
+                    command.name,
+                    positional,
+                    asked_words(program, command.name, positional.index).is_some(),
+                )
             ));
         }
         out.push_str("  ]\n");

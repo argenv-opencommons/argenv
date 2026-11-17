@@ -1,6 +1,6 @@
 //! fish completion.
 
-use super::{commands, model, GenerateError, Model, Program};
+use super::{asked_words, commands, model, GenerateError, Model, Program};
 use crate::Record;
 
 /// Single-quote text for fish: inside single quotes only `\` and `'` are special.
@@ -68,15 +68,22 @@ pub fn fish(program: &Program<'_>, records: &[Record]) -> Result<String, Generat
     }
 
     for positional in &positionals {
-        if positional.values.is_empty() && !positional.path {
-            continue;
-        }
         for command in commands.iter().filter(|c| positional.available_for(c.name)) {
+            let asked = asked_words(program, command.name, positional.index);
+            if asked.is_none() && positional.values.is_empty() && !positional.path {
+                continue;
+            }
             let mut spec = format!(
                 "complete -c {name} -n '__fish_seen_subcommand_from {}'",
                 command.name
             );
-            if positional.values.is_empty() {
+            if let Some(words) = &asked {
+                // Run when Tab is pressed; each line it prints is a candidate.
+                spec.push_str(&format!(
+                    " -a {}",
+                    quote(&format!("({} 2>/dev/null)", words.join(" ")))
+                ));
+            } else if positional.values.is_empty() {
                 spec.push_str(" -F");
             } else {
                 spec.push_str(&format!(" -a {}", quote(&positional.values.join(" "))));

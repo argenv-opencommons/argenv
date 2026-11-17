@@ -6,7 +6,7 @@
 //! cannot make a test silently vacuous.
 
 use argenv_resolve::generate::{
-    bash, completions, fish, man_page, nushell, zsh, Command, GenerateError, Program, Shell,
+    bash, completions, fish, man_page, nushell, zsh, Asked, Command, GenerateError, Program, Shell,
 };
 use argenv_resolve::*;
 use std::path::{Path, PathBuf};
@@ -178,6 +178,7 @@ fn program() -> Program<'static> {
         exit_status: &[("0", "done"), ("2", "the invocation is wrong")],
         see_also: &["snapper(8)"],
         date: "2026-10-23",
+        asked: &[],
     }
 }
 
@@ -746,4 +747,297 @@ fn shell_tokens_round_trip() {
     }
     assert_eq!(Shell::parse("nu"), Some(Shell::Nushell));
     assert_eq!(Shell::parse("powershell"), None);
+}
+
+// ---- values the program lists itself, asked at completion time ---------------------------
+
+/// `create`'s description and `completions`' shell are asked of the program: the first has no
+/// values of its own, the second has enumerated ones the asked values replace.
+const ASKED: &[Asked<'static>] = &[
+    Asked {
+        command: "create",
+        position: 0,
+        ask: &["names", "create"],
+    },
+    Asked {
+        command: "completions",
+        position: 0,
+        ask: &["names", "shells"],
+    },
+];
+
+fn asked_program() -> Program<'static> {
+    Program {
+        asked: ASKED,
+        ..program()
+    }
+}
+
+/// A fake `app` on `PATH` that prints its candidates when asked, and fails (noisily) for
+/// `names shells` when `APP_FAIL` is set.
+const FAKE_APP: &str = r#"#!/bin/sh
+if [ "$1 $2" = "names create" ]; then
+    printf 'first-name\nsecond-name\n'
+elif [ "$1 $2" = "names shells" ]; then
+    if [ -n "$APP_FAIL" ]; then echo "app: broken" >&2; exit 1; fi
+    printf 'ksh\n'
+else
+    echo "app: asked something unexpected: $*" >&2
+    exit 2
+fi
+"#;
+
+/// A directory holding the fake `app`, and a `PATH` with it in front.
+fn fake_app(dir: &Path) -> std::ffi::OsString {
+    let bin = dir.join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let app = write(&bin, "app", FAKE_APP);
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&app, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut paths = vec![bin];
+    if let Some(old) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&old));
+    }
+    std::env::join_paths(paths).unwrap()
+}
+
+#[test]
+fn an_asked_positional_runs_the_program_in_every_shell() {
+    for shell in Shell::ALL {
+        let text = completions(shell, &asked_program(), &records()).unwrap();
+        let bare = text.replace(['\'', '"'], "");
+        assert!(bare.contains("app names create"), "{shell:?}:\n{text}");
+        assert!(
+            text.contains("2>/dev/null") || shell == Shell::Nushell,
+            "{shell:?}"
+        );
+    }
+    // Asked values take precedence over the enumerated ones for that slot (bash, the one arm).
+    let text = bash(&asked_program(), &records()).unwrap();
+    let arm = text
+        .lines()
+        .find(|l| l.trim_start().starts_with("completions:0)"))
+        .unwrap();
+    assert!(arm.contains("names") && !arm.contains("nushell"), "{arm}");
+}
+
+#[test]
+fn an_ask_that_is_not_plain_tokens_is_refused() {
+    for (command, ask) in [
+        ("create", &["names", "$(touch PWNED)"][..]),
+        ("create", &["a b"][..]),
+        ("create", &["x;y"][..]),
+        ("create", &[][..]),
+        ("cr eate", &["names"][..]),
+    ] {
+        let asked = [Asked {
+            command,
+            position: 0,
+            ask,
+        }];
+        let p = Program {
+            asked: &asked,
+            ..program()
+        };
+        for shell in Shell::ALL {
+            assert!(
+                matches!(
+                    completions(shell, &p, &records()),
+                    Err(GenerateError::InvalidName(_))
+                ),
+                "{shell:?} {command:?} {ask:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn bash_completes_what_the_program_prints_when_asked() {
+    if tool("bash").is_none() {
+        return;
+    }
+    let dir = scratch("bash-asked");
+    let path = fake_app(&dir);
+    let script = write(
+        &dir,
+        "app.bash",
+        &bash(&asked_program(), &records()).unwrap(),
+    );
+    let complete = |words: &[&str], fail: bool| {
+        let quoted: Vec<String> = words.iter().map(|w| format!("'{w}'")).collect();
+        let line = format!(
+            "source {}; COMP_WORDS=({}); COMP_CWORD={}; COMPREPLY=(); _app; printf '%s\\n' \"${{COMPREPLY[@]}}\"",
+            script.display(),
+            quoted.join(" "),
+            words.len() - 1
+        );
+        let mut process = Process::new("bash");
+        process
+            .current_dir(&dir)
+            .env("PATH", &path)
+            .arg("-c")
+            .arg(line);
+        if fail {
+            process.env("APP_FAIL", "1");
+        }
+        let (ok, stdout, stderr) = run(&mut process);
+        assert!(ok, "{stderr}");
+        assert!(
+            stderr.is_empty(),
+            "the program's errors are not shown: {stderr}"
+        );
+        stdout
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        complete(&["app", "create", ""], false),
+        ["first-name", "second-name"]
+    );
+    assert_eq!(complete(&["app", "create", "s"], false), ["second-name"]);
+    assert_eq!(
+        complete(&["app", "completions", ""], false),
+        ["ksh"],
+        "the asked values replace the enumerated ones"
+    );
+    assert!(
+        complete(&["app", "completions", ""], true).is_empty(),
+        "a failing program offers nothing"
+    );
+    assert_nothing_ran(&dir);
+}
+
+#[test]
+fn fish_completes_what_the_program_prints_when_asked() {
+    let Some(fish_path) = tool("fish") else {
+        return;
+    };
+    let dir = scratch("fish-asked");
+    let path = fake_app(&dir);
+    let script = write(
+        &dir,
+        "app.fish",
+        &fish(&asked_program(), &records()).unwrap(),
+    );
+    let ask = |line: &str, fail: bool| {
+        let mut process = Process::new(&fish_path);
+        process
+            .current_dir(&dir)
+            .env("PATH", &path)
+            .arg("--no-config")
+            .arg("-c")
+            .arg(format!("source {}; complete -C '{line}'", script.display()));
+        if fail {
+            process.env("APP_FAIL", "1");
+        }
+        let (ok, stdout, stderr) = run(&mut process);
+        assert!(ok, "{stderr}");
+        assert!(
+            stderr.is_empty(),
+            "the program's errors are not shown: {stderr}"
+        );
+        stdout
+    };
+    let names = ask("app create ", false);
+    assert!(
+        names.contains("first-name") && names.contains("second-name"),
+        "{names}"
+    );
+    let shells = ask("app completions ", false);
+    assert!(
+        shells.contains("ksh") && !shells.contains("nushell"),
+        "{shells}"
+    );
+    assert!(!ask("app completions ", true).contains("ksh"));
+    assert_nothing_ran(&dir);
+}
+
+#[test]
+fn zsh_completes_what_the_program_prints_when_asked() {
+    let Some(zsh_path) = tool("zsh") else { return };
+    let dir = scratch("zsh-asked");
+    let path = fake_app(&dir);
+    write(&dir, "_app", &zsh(&asked_program(), &records()).unwrap());
+    let driver = write(&dir, "driver.zsh", ZSH_DRIVER);
+    let tab = |typed: &str| -> String {
+        let (ok, stdout, stderr) = run(Process::new("timeout")
+            .arg("40")
+            .arg(&zsh_path)
+            .current_dir(&dir)
+            .env("PATH", &path)
+            .arg("-f")
+            .arg(&driver)
+            .arg(&dir)
+            .arg(typed));
+        assert!(ok, "zsh driver failed: {stderr}\n{stdout}");
+        stdout.replace('\r', "")
+    };
+    let names = tab("app create ");
+    assert!(
+        names.contains("first-name") && names.contains("second-name"),
+        "{names}"
+    );
+    assert!(
+        tab("app create s").contains("app create second-name"),
+        "a single candidate is completed in place"
+    );
+    let shells = tab("app completions ");
+    assert!(
+        shells.contains("app completions ksh") && !shells.contains("nushell"),
+        "{shells}"
+    );
+    assert_nothing_ran(&dir);
+}
+
+#[test]
+fn nushell_completes_what_the_program_prints_when_asked() {
+    let Some(nu) = tool("nu") else { return };
+    let dir = scratch("nu-asked");
+    let path = fake_app(&dir);
+    let text = nushell(&asked_program(), &records()).unwrap();
+    write(&dir, "app.nu", &text);
+    // The completers are private to the module, so each is lifted out and run on its own.
+    let body = |completer: &str| -> String {
+        let head = format!("  def \"nu-complete app {completer}\" [] {{ ");
+        let line = text
+            .lines()
+            .find(|l| l.starts_with(&head))
+            .unwrap_or_else(|| panic!("no completer {completer}:\n{text}"));
+        line[head.len()..line.len() - 2].to_string()
+    };
+    let call = |completer: &str, fail: bool| -> Vec<String> {
+        let mut process = Process::new(&nu);
+        process
+            .current_dir(&dir)
+            .env("PATH", &path)
+            .arg("--no-config-file")
+            .arg("-c")
+            .arg(format!("def f [] {{ {} }}; f | to json", body(completer)));
+        if fail {
+            process.env("APP_FAIL", "1");
+        }
+        let (ok, stdout, stderr) = run(&mut process);
+        assert!(ok, "{stderr}\n{stdout}");
+        serde_json::from_str(&stdout).expect("nu prints a JSON list")
+    };
+    assert_eq!(call("create 0", false), ["first-name", "second-name"]);
+    assert_eq!(call("completions 0", false), ["ksh"]);
+    assert!(call("completions 0", true).is_empty());
+    // And the whole file still loads, with the completer attached to the positional.
+    let (ok, stdout, stderr) = run(Process::new(&nu)
+        .current_dir(&dir)
+        .arg("--no-config-file")
+        .arg("-c")
+        .arg(format!(
+            "source {}; scope externs | where name == 'app create' | length",
+            dir.join("app.nu").display()
+        )));
+    assert!(ok && stdout.trim() == "1", "{stderr}\n{stdout}");
+    assert!(
+        text.contains("string@\"nu-complete app create 0\""),
+        "{text}"
+    );
+    assert_nothing_ran(&dir);
 }

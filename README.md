@@ -95,9 +95,25 @@ let program = Program {
     exit_status: &[("0", "done"), ("2", "the invocation is wrong")],
     see_also: &[],
     date: "2026-10-23", // a parameter, not a clock reading: output is reproducible
+    asked: &[],
 };
 print!("{}", generate::completions(Shell::Bash, &program, &Contract::records())?);
 print!("{}", generate::man_page(&program, &Contract::records())?);
+```
+
+Some values only the program knows when Tab is pressed: the names of files in the current
+folder, of records in a store. `asked` says which positional they belong to and how to ask the
+program for them; the completions run it then and offer each line it prints (its errors are
+discarded, and a failure offers nothing):
+
+```rust,ignore
+use argenv_resolve::generate::Asked;
+
+// `myapp run <Tab>` offers what `myapp list-names` prints, in every shell.
+let program = Program {
+    asked: &[Asked { command: "run", position: 0, ask: &["list-names"] }],
+    ..program
+};
 ```
 
 The output is shell code, so the contract is treated as **untrusted**: names and values that are

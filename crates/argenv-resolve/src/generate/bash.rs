@@ -1,6 +1,6 @@
 //! bash completion.
 
-use super::{commands, identifier, model, GenerateError, Model, Program};
+use super::{asked_words, commands, identifier, model, GenerateError, Model, Program};
 use crate::Record;
 
 /// Single-quote text for bash: the only character that matters inside is the quote itself.
@@ -13,7 +13,7 @@ fn quote(text: &str) -> String {
 /// The script defines `_<program>` and registers it with `complete -F`. It completes the
 /// subcommand, the flags that belong to the subcommand already typed (and the unscoped ones),
 /// the values of enumerated flags, file names for path-valued flags, and enumerated or path
-/// positional arguments.
+/// positional arguments, and the positionals the program lists itself ([`Asked`](super::Asked)).
 pub fn bash(program: &Program<'_>, records: &[Record]) -> Result<String, GenerateError> {
     let commands = commands(program)?;
     let Model { flags, positionals } = model(records);
@@ -117,12 +117,32 @@ pub fn bash(program: &Program<'_>, records: &[Record]) -> Result<String, Generat
         ));
     }
 
-    // Positional arguments with something to offer.
-    let useful: Vec<_> = positionals
-        .iter()
-        .filter(|p| !p.values.is_empty() || p.path)
-        .collect();
-    if !useful.is_empty() && !commands.is_empty() {
+    // Positional arguments with something to offer: what the program prints when asked, else
+    // the enumerated values, else file names.
+    let mut positional_arms = String::new();
+    for positional in &positionals {
+        for command in commands.iter().filter(|c| positional.available_for(c.name)) {
+            let arm = if let Some(words) = asked_words(program, command.name, positional.index) {
+                let line = words.iter().map(|w| quote(w)).collect::<Vec<_>>().join(" ");
+                format!("COMPREPLY=( $(compgen -W \"$({line} 2>/dev/null)\" -- \"$cur\") )")
+            } else if !positional.values.is_empty() {
+                format!(
+                    "COMPREPLY=( $(compgen -W {} -- \"$cur\") )",
+                    quote(&positional.values.join(" "))
+                )
+            } else if positional.path {
+                "compopt -o filenames 2>/dev/null; COMPREPLY=( $(compgen -f -- \"$cur\") )"
+                    .to_string()
+            } else {
+                continue;
+            };
+            positional_arms.push_str(&format!(
+                "        {}:{}) {arm} ;;\n",
+                command.name, positional.index
+            ));
+        }
+    }
+    if !positional_arms.is_empty() {
         out.push_str("    local pos=0 skip=0 w\n    for ((i = cmd_index + 1; i < COMP_CWORD; i++)); do\n        w=\"${COMP_WORDS[i]}\"\n        if [[ $skip -eq 1 ]]; then skip=0; continue; fi\n        case \"$w\" in\n");
         if !value_flags.is_empty() {
             out.push_str(&format!(
@@ -131,23 +151,7 @@ pub fn bash(program: &Program<'_>, records: &[Record]) -> Result<String, Generat
             ));
         }
         out.push_str("            -*) ;;\n            *) pos=$((pos + 1)) ;;\n        esac\n    done\n    case \"$cmd:$pos\" in\n");
-        for positional in useful {
-            for command in commands.iter().filter(|c| positional.available_for(c.name)) {
-                let arm = if positional.values.is_empty() {
-                    "compopt -o filenames 2>/dev/null; COMPREPLY=( $(compgen -f -- \"$cur\") )"
-                        .to_string()
-                } else {
-                    format!(
-                        "COMPREPLY=( $(compgen -W {} -- \"$cur\") )",
-                        quote(&positional.values.join(" "))
-                    )
-                };
-                out.push_str(&format!(
-                    "        {}:{}) {arm} ;;\n",
-                    command.name, positional.index
-                ));
-            }
-        }
+        out.push_str(&positional_arms);
         out.push_str("    esac\n");
     }
     out.push_str(&format!(
